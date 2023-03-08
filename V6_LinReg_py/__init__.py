@@ -10,14 +10,14 @@ import numpy as np
 def master():
     pass
 
-def RPC_fit_round(data, parameters, lr):
+def RPC_fit_round(data, parameters, cols, lr):
 
     
 
-    #TODO: train/test column has different name (I think?)
-    X_train = data.loc[data['train/test']=='train']['metaboAge'].values.reshape(-1,1)
+    #TODO: implement train/test split(seed wise)
+    X_train = data.loc[data['train/test']=='train'][cols].values.reshape(-1,1)
     y_train = data.loc[data['train/test']=='train']['brainAge_sim'].values
-    X_test = data.loc[data['train/test']=='test']['metaboAge'].values.reshape(-1,1)
+    X_test = data.loc[data['train/test']=='test'][cols].values.reshape(-1,1)
     y_test = data.loc[data['train/test']=='test']['brainAge_sim'].values
     
 
@@ -25,7 +25,7 @@ def RPC_fit_round(data, parameters, lr):
     
     model.coef_ = np.copy(parameters[0])
     model.intercept_ = np.copy(parameters[1])
-    
+
     model.partial_fit(X_train, y_train)
 
     loss = np.mean((model.predict(X_test) - y_test) **2)
