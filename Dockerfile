@@ -3,7 +3,7 @@
 FROM pmateus/algorithm-base:1.0.0
 # This is a placeholder that should be overloaded by invoking
 # docker build with '--build-arg PKG_NAME=...'
-ARG PKG_NAME="V6_LinReg_py"
+ARG PKG_NAME="v6_LinReg_py"
 
 #set working directory
 #WORKDIR /app
