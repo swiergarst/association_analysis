@@ -3,6 +3,7 @@ import os
 import numpy as np
 import json
 from io import BytesIO
+import datetime
 
 from utils import init_global_params, average, define_model
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -31,11 +32,11 @@ model = "M1" # model selection (see analysis plan)
 
 betas = np.zeros((n_runs, n_rounds, 3))
 losses = np.zeros_like(betas)
-cols = define_model(model)
+data_cols, extra_cols = define_model(model)
 
 for run in range(n_runs):
     # federated iterative process
-    global_coefs, global_intercepts = init_global_params(cols)
+    global_coefs, global_intercepts = init_global_params(data_cols, extra_cols)
     
     for round in range(n_rounds):
         #print(global_coefs, global_intercepts)
@@ -45,7 +46,8 @@ for run in range(n_runs):
                 'kwargs' : {
                     'coefs' : global_coefs,
                     "intercepts" :  global_intercepts,
-                    "cols" : cols,
+                    "data_cols" : data_cols,
+                    "extra_cols" : extra_cols,
                     "lr" : lr,
                     "seed": 42
                     }
@@ -66,8 +68,8 @@ for run in range(n_runs):
                 finished = True
 
         results = [np.load(BytesIO(result[i]['result']), allow_pickle=True) for i in range(3)]
-        local_coefs = np.empty((len(cols), 3))
-        local_intercepts = np.empty((len(cols),3))
+        local_coefs = np.empty((len(global_coefs), 3))
+        local_intercepts = np.empty((len(global_intercepts),3))
         for i in range(3):
             local_coefs[:,i], local_intercepts[:, i] = results[i]['param']
             dataset_sizes[i] = results[i]['size']
@@ -84,11 +86,10 @@ final_results = {
     "nrounds" : n_rounds,
     "model" : model,
     "betas" : betas,
-    "cols" : cols,
     "loss" : losses
 }
 
-file_str = "analysis_model_" + model + ".json"
+file_str = "analysis_model_" + model + datetime.datetime.now().strftime("%x") +  ".json"
 jo = json.dumps(final_results)
 
 with open(file_str, "wb") as f:

@@ -2,8 +2,15 @@ import numpy as np
 
 
 # we might want to try different initializations later on
-def init_global_params(data_cols):
-    return np.random.normal(0, 1, len(data_cols)), [np.random.normal(0, 1)]
+def init_global_params(data_cols, extra_cols):
+    if None in extra_cols:
+        extra_len = 0
+    elif "Sens_1" in extra_cols or "Sens_2" in extra_cols:
+        extra_len = len(extra_cols) - 1
+    else:
+        extra_len = len(extra_cols)
+    model_len = len(data_cols) + extra_len
+    return np.random.normal(0, 1, model_len), [np.random.normal(0, 1)]
 
 
 # simple fedAvg implementation
@@ -26,7 +33,6 @@ def average(params, sizes):
 
     return parameters
 
-#TODO: models 4-7 (sensitivity analysis/metaboHealth)
 def define_model(model):
     if (model == "M1"):
         data_cols = ['metabo_age']
@@ -51,5 +57,5 @@ def define_model(model):
         extra_cols = ["Age", "Lag_time"]
     else:
         return ValueError("invalid model option")
-    return data_cols
+    return data_cols, extra_cols
 
