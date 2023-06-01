@@ -2,8 +2,8 @@ import numpy as np
 
 
 # we might want to try different initializations later on
-def init_global_params(cols):
-    return np.random.normal(0, 1, len(cols)), [np.random.normal(0, 1)]
+def init_global_params(data_cols):
+    return np.random.normal(0, 1, len(data_cols)), [np.random.normal(0, 1)]
 
 
 # simple fedAvg implementation
@@ -29,20 +29,27 @@ def average(params, sizes):
 #TODO: models 4-7 (sensitivity analysis/metaboHealth)
 def define_model(model):
     if (model == "M1"):
-        cols = ['metabo_age']
+        data_cols = ['metabo_age']
+        extra_cols = [None]
     elif (model == "M2"):
-        cols = ["metabo_age", "Age", "sex", "Lag_time", "Diabetes_Mellitus"]
+        data_cols = ["metabo_age", "sex", "dm"]
+        extra_cols = ["Age", "Lag_time"]
     elif (model == "M3"):
-        cols = ["metabo_age", "Age", "sex", "Lag_time", "Diabetes_Mellitus", "BMI", "education_category"]
+        data_cols = ["metabo_age", "sex", "dm", "bmi", "education_category"]
+        extra_cols = ["Age", "Lag_time"]
     elif (model == "M4"):
-        cols = ["metabo_age", "Age", "sex", "Lag_time", "Diabetes_Mellitus", "BMI", "education_category", "Sens_1"]
+        data_cols = ["metabo_age", "Age", "sex", "Lag_time", "dm", "bmi", "education_category"]
+        extra_cols = ["Age", "Lag_time", "Sens_1"]
     elif (model == "M5"):
-        cols = ["metabo_age", "Age", "sex", "Lag_time", "Diabetes_Mellitus", "BMI", "education_category", "Sens_2"]
+        data_cols = ["metabo_age", "Age", "sex", "Lag_time", "dm", "bmi", "education_category", "Sens_2"]
+        extra_cols = ["Age", "Lag_time", "Sens_2"]
     elif (model == "M6"):
-        cols = ["metabo_health", "Age", "sex", "Lag_time", "Diabetes_Mellitus"]
+        data_cols = ["metabo_health", "Age", "sex", "Lag_time", "dm"]
+        extra_cols = ["Age", "Lag_time"]
     elif (model == "M7"):
-        cols = ["metabo_age", "Age", "sex", "Lag_time", "Diabetes_Mellitus", "BMI", "education_category"]
+        data_cols = ["metabo_health", "Age", "sex", "Lag_time", "dm", "bmi", "education_category"]
+        extra_cols = ["Age", "Lag_time"]
     else:
         return ValueError("invalid model option")
-    return cols
+    return data_cols
 

@@ -25,6 +25,8 @@ setup(
     install_requires=[
         'scikit-learn',
         'numpy',
+        'pandas',
+        'psycopg2'
     ]
 
 )
