@@ -61,10 +61,10 @@ def RPC_fit_round(data, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_U
 
 
     if "Sens_1" in extra_cols:
-        data = data.loc[data['Lag_time'] <= 1]
+        data = data.loc[abs(data['Lag_time']) <= 1]
         #cols.remove("Sens_1")
     if "Sens_2" in extra_cols:
-        data = data.loc[data["Lag_time"] <= 2]
+        data = data.loc[abs(data["Lag_time"]) <= 2]
         #cols.remove("Sens_2")
 
     rng = np.random.default_rng(seed = seed)
