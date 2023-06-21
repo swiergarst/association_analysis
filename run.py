@@ -4,7 +4,7 @@ import numpy as np
 import json
 from io import BytesIO
 import datetime
-
+import psycopg2
 from utils import init_global_params, average, define_model
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -61,6 +61,8 @@ for run in range(n_runs):
         #local_coefs = np.empty((n_rounds, 3), dtype=object)
         #local_intercepts = np.empty((n_rounds, 3), dtype=object)
         dataset_sizes = np.empty(3, dtype = object)
+        local_coefs = np.empty((len(global_coefs), 3))
+        local_intercepts = np.empty((len(global_intercepts),3))
 
         while (finished == False):
             result = client.get_results(task_id=task.get("id"))
@@ -68,12 +70,15 @@ for run in range(n_runs):
                 finished = True
 
         results = [np.load(BytesIO(result[i]['result']), allow_pickle=True) for i in range(3)]
-        local_coefs = np.empty((len(global_coefs), 3))
-        local_intercepts = np.empty((len(global_intercepts),3))
-        for i in range(3):
-            local_coefs[:,i], local_intercepts[:, i] = results[i]['param']
-            dataset_sizes[i] = results[i]['size']
-            losses[run, round, i] = results[i]['loss']
+
+        if psycopg2.Error in results:
+            print("query error: ", results)
+            break
+        else:
+            for i in range(3):
+                local_coefs[:,i], local_intercepts[:, i] = results[i]['param']
+                dataset_sizes[i] = results[i]['size']
+                losses[run, round, i] = results[i]['loss']
 
         global_coefs = average(local_coefs, dataset_sizes)
         global_intercepts = average(local_intercepts, dataset_sizes)

@@ -38,7 +38,8 @@ def RPC_fit_round(data, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_U
             data_pg = cursor.execute("SELECT {} FROM ncdc".format(col))
             data_df[col] = data_pg.fetchall()
     except psycopg2.Error as e:
-        print(e)
+        return e
+
 
 
     data = data_df[all_cols].dropna()
