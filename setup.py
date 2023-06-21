@@ -15,18 +15,18 @@ here = path.abspath(path.dirname(__file__))
 # setup the package
 setup(
     name='v6_LinReg_py',
-    version="1.0.0",
+    version="1.1.0",
     description='federated Linear Regression',
     #long_description=long_description,
     #long_description_content_type='text/markdown',
     #url='https://github.com/IKNL/v6_boilerplate-py',
     packages=['v6_LinReg_py'],
-    python_requires='>=3.6',
+    python_requires='==3.7.9',
     install_requires=[
-        'scikit-learn',
-        'numpy',
-        'pandas',
-        'psycopg2'
+        'scikit-learn==1.0.2',
+        'numpy>=1.16.4',
+        'pandas>=1.3.5',
+        'psycopg2-binary==2.9.6'
     ]
 
 )
