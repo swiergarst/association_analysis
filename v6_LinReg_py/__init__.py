@@ -9,7 +9,7 @@ import pandas as pd
 def master():
     pass
 
-def RPC_fit_round(data, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = [None]):
+def RPC_fit_round(coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = [None]):
 
 
     #TODO: calc metaboage/health through PHT

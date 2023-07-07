@@ -9,16 +9,65 @@ from utils import init_global_params, average, define_model
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
-#TODO: change these for Leiden server
-print("Attempt login to Vantage6 API")
-client = Client("http://localhost", 5000, "/api")
-client.authenticate("researcher", "1234")
-privkey ="/home/swier/Documents/FedvsCent/privkeys/privkey_testOrg0.pem"
-client.setup_encryption(privkey)
 
-#TODO: know which ID is from which center
+print("Attempt login to Vantage6 API")
+client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
+client.authenticate("sgarst", "cUGRCaQzPnBa")
+client.setup_encryption(None)
+
+
+
+#ID mapping:
+# 2 - Leiden
+# 3 - Rotterdam
+# 4 - Maastricht
+
+
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
+model = "M1"
+lr = 0.05
+
+data_cols, extra_cols = define_model(model)
+global_coefs, global_intercepts = init_global_params(data_cols, extra_cols)
+    
+
+
+task = client.post_task(
+    input_ = {
+        'method' : 'fit_round',
+        'kwargs' : {
+            'coefs' : global_coefs,
+            "intercepts" :  global_intercepts,
+            "data_cols" : data_cols,
+            "extra_cols" : extra_cols,
+            "lr" : lr,
+            "seed": 42
+            }
+        },
+    name = "Analysis fit regressor, round" + str(round),
+    image = "sgarst/association-analysis:1.1",
+    organization_ids=[4],
+    collaboration_id=1
+)
+
+finished = False
+
+while (finished == False):
+    result = client.get_results(task_id=task.get("id"))
+    if not None in [result[0]['result'] ]:
+        finished = True
+
+
+print(result[0]['log'])
+#results = [np.load(BytesIO(result[i]['result']), allow_pickle=True) for i in range(3)]
+
+
+
+
+
+
+exit()
 
 ## Parameter settings ##
 
