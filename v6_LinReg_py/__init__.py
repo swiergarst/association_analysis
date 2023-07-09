@@ -9,9 +9,10 @@ import pandas as pd
 def master():
     pass
 
-def RPC_fit_round(coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = [None]):
+def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = [None]):
 
 
+    info("starting fit_round")
     #TODO: calc metaboage/health through PHT
     
     data_df = pd.DataFrame()
@@ -22,12 +23,19 @@ def RPC_fit_round(coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = N
     
     # could also use this to set URI
     if PG_URI == None:
-        PG_URI = 'postgresql://{}:{}@{}:{}/{}'.format(
-                os.getenv("DB_USER"),
-                os.getenv("DB_PASSWORD"),
-                os.getenv("DB_HOST"),
-                os.getenv("DB_PORT"))
-    
+        PG_URI = 'postgresql://{}:{}@{}:{}'.format(
+            os.getenv("PGUSER"),
+            os.getenv("PGPASSWORD"),
+            os.getenv("PGHOST"),
+            os.getenv("PGPORT"))
+
+       # PG_URI = 'postgresql://{}:{}@{}:{}'.format(
+       #         os.getenv("DB_USER"),
+       ##         os.getenv("DB_PASSWORD"),
+       #         os.getenv("DB_HOST"),
+       #         os.getenv("DB_PORT"))
+   
+    info("connecting to PG DB:" + str(PG_URI))
     # get data from postgres DB
     try:
         connection = psycopg2.connect(PG_URI)
@@ -40,7 +48,7 @@ def RPC_fit_round(coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = N
     except psycopg2.Error as e:
         return e
 
-
+    info("connected to PG database")
 
     data = data_df[all_cols].dropna()
 
@@ -52,6 +60,7 @@ def RPC_fit_round(coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = N
 
     Age_met = blood_dates_years - data["birth_year"].values
     Age_brain = mri_dates_years - data["birth_year"].values
+
 
     if "Lag_time" in extra_cols:
         data["Lag_time"] = Age_met - Age_brain
@@ -67,6 +76,10 @@ def RPC_fit_round(coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = N
     if "Sens_2" in extra_cols:
         data = data.loc[abs(data["Lag_time"]) <= 2]
         #cols.remove("Sens_2")
+
+    
+    info("calculated all covariates")
+
 
     rng = np.random.default_rng(seed = seed)
     
@@ -98,7 +111,7 @@ def RPC_fit_round(coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = N
 
     model.partial_fit(X_train, y_train)
 
-    #info("model fitted")
+    info("model fitted")
 
 
     loss = np.mean((model.predict(X_test) - y_test) **2)
@@ -110,4 +123,36 @@ def RPC_fit_round(coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = N
         "size": y_test.shape[0]
     }
     
+
+def RPC_pgdb_test(db_client, PG_URI = None):
+
+        
+    # could also use this to set URI
+    if PG_URI == None:
+        PG_URI = 'postgresql://{}:{}@{}:{}'.format(
+            os.getenv("PGUSER"),
+            os.getenv("PGPASSWORD"),
+            os.getenv("PGHOST"),
+            os.getenv("PGPORT"))
+
+
+   
+    info("connecting to PG DB:" + str(PG_URI))
+    # get data from postgres DB
+    try:
+        connection = psycopg2.connect(PG_URI)
+        cursor = connection.cursor()
+
+        info("connected to PG database")
+        data_pg = cursor.execute("SELECT * FROM ncdc")
+        print(cursor.fetchall())
+
+
+        #incrementally build dataframe
+    except psycopg2.Error as e:
+        return e
+
+
+    cursor.close()
+    connection.close()
 
