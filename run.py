@@ -65,7 +65,7 @@ for run in range(n_runs):
                     }
                 },
             name = "Analysis fit regressor, round" + str(round),
-            image = "sgarst/association-analysis:1.1.1",
+            image = "sgarst/association-analysis:pgTest2",
             organization_ids=ids,
             collaboration_id=1
         )
