@@ -196,7 +196,7 @@ def RPC_create_db(db_client, PG_URI = None):
 
         info("connected")
         all_cols =  ["metabo_age", "brain_age", "date_blood", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category"]
-        vals = abs(rng.standard_normal(size = (len(all_cols), 30)))
+        vals = abs(rng.standard_normal(size = (len(all_cols), 30))).astype(object)
         #print(len(all_cols))
 
         
@@ -206,10 +206,12 @@ def RPC_create_db(db_client, PG_URI = None):
         for i, col in enumerate(all_cols):
             if col == "date_blood" or col == "date_mri":
                 #modify the value in 'vals' for these columns
-                base_time = np.datetime64('2015-01-01')
-                vals[i,:] = base_time + rng.standard_normal(size = len(vals[i,:]))
-            
-            query = "ALTER TABLE ncdc ADD " + col + " int;"
+                base_time = np.datetime64('2010-01-01')
+                vals[i,:] = np.array(base_time + rng.integers(0, 2000, size = len(vals[i,:]))).astype(str)
+                query = "ALTER TABLE ncdc ADD " + col + " date;"
+
+            else:
+                query = "ALTER TABLE ncdc ADD " + col + " int;"
             cursor.execute(query)
             #cursor.execute("""ALTER TABLE ncdc ADD %s float;""", (col,))
         info("adding dummy data to ncdc table")

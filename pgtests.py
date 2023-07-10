@@ -35,7 +35,7 @@ create_task = client.post_task(
         'kwargs' : {            }
         },
     name = "Analysis fit regressor, round" + str(round),
-    image = "sgarst/association-analysis:pgTest",
+    image = "sgarst/association-analysis:pgTest2",
     organization_ids=ids,
     collaboration_id=1
 )
@@ -63,7 +63,7 @@ print_task = client.post_task(
         'kwargs' : {            }
         },
     name = "Analysis fit regressor, round" + str(round),
-    image = "sgarst/association-analysis:pgTest",
+    image = "sgarst/association-analysis:pgTest2",
     organization_ids=ids,
     collaboration_id=1
 )
