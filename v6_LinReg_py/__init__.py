@@ -83,8 +83,11 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
 
     rng = np.random.default_rng(seed = seed)
     
-    X = data[data_cols].values.reshape(-1, 1)
+    X = data[data_cols].values
     y = data["brain_age"].values.reshape(-1, 1)
+
+    info(str(X.shape) + str(len(X)))
+
     train_inds = rng.choice(len(X), math.floor(len(X)* 0.8), replace=False)
     train_inds = np.sort(train_inds)
     train_mask = np.zeros((len(X)), dtype=bool)
@@ -94,6 +97,9 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     
     y_train = y[train_mask]
     y_test = y[~train_mask]
+
+    info("X_train shape: " + str(X_train.shape))
+    info("Y_train shape: " + str(y_train.shape))
 
     model = SGDRegressor(loss="squared_error", penalty=None, max_iter = 1, eta0=lr)
     
@@ -112,7 +118,7 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
         "param": (model.coef_, model.intercept_),
         "data_cols" : data_cols,
         "loss": loss,
-        "size": y_test.shape[0]
+        "size": y_train.shape[0]
     }
     
 

@@ -10,11 +10,11 @@ client.setup_encryption(None)
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
 
-model = "M2"
+model = "M5"
 lr = 0.05
 
-fit = True
-create = False
+fit = False
+create = True
 pr = False
 image_name = "sgarst/association-analysis:1.1.2"
 
@@ -47,9 +47,9 @@ if fit:
         if not None in [result[i]['result'] for i in range(len(result)) ]:
             finished = True
 
-    results = [np.load(BytesIO(res['result']), allow_pickle=True) for res in result]
-
     print(result[0]['log'])
+
+    results = [np.load(BytesIO(res['result']), allow_pickle=True) for res in result]
     print(results[0])
 
 
