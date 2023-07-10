@@ -20,14 +20,13 @@ def average(params, sizes):
     #create size-based weights
     num_clients = sizes.size
 
-
-
     total_size = np.sum(sizes) 
     weights = sizes / total_size
 
-    #do averaging
-    parameters = np.zeros_like(params[0].shape[0])
 
+    #do averaging
+    parameters = np.zeros(params.shape[0], dtype=float)
+    print(weights.shape, params.shape, parameters.shape)
     for j in range(num_clients):
         parameters += weights[j] * params[:,j]
 
@@ -47,7 +46,7 @@ def define_model(model):
         data_cols = ["metabo_age", "Age", "sex", "Lag_time", "dm", "bmi", "education_category"]
         extra_cols = ["Age", "Lag_time", "Sens_1"]
     elif (model == "M5"):
-        data_cols = ["metabo_age", "Age", "sex", "Lag_time", "dm", "bmi", "education_category", "Sens_2"]
+        data_cols = ["metabo_age", "Age", "sex", "Lag_time", "dm", "bmi", "education_category"]
         extra_cols = ["Age", "Lag_time", "Sens_2"]
     elif (model == "M6"):
         data_cols = ["metabo_health", "Age", "sex", "Lag_time", "dm"]
