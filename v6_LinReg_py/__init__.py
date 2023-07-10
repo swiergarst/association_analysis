@@ -124,35 +124,6 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     }
     
 
-def RPC_pgdb_test(db_client, PG_URI = None):
-
-        
-    # could also use this to set URI
-    if PG_URI == None:
-        PG_URI = 'postgresql://{}:{}@{}:{}'.format(
-            os.getenv("PGUSER"),
-            os.getenv("PGPASSWORD"),
-            os.getenv("PGHOST"),
-            os.getenv("PGPORT"))
 
 
-   
-    info("connecting to PG DB:" + str(PG_URI))
-    # get data from postgres DB
-    try:
-        connection = psycopg2.connect(PG_URI)
-        cursor = connection.cursor()
-
-        info("connected to PG database")
-        data_pg = cursor.execute("SELECT * FROM ncdc")
-        print(cursor.fetchall())
-
-
-        #incrementally build dataframe
-    except psycopg2.Error as e:
-        return e
-
-
-    cursor.close()
-    connection.close()
 

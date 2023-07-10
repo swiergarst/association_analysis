@@ -6,6 +6,7 @@ from io import BytesIO
 import datetime
 import psycopg2
 from utils import init_global_params, average, define_model
+import time
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -34,44 +35,6 @@ lr = 0.05
 
 data_cols, extra_cols = define_model(model)
 global_coefs, global_intercepts = init_global_params(data_cols, extra_cols)
-    
-print("posting task")
-
-task = client.post_task(
-    input_ = {
-        'method' : 'fit_round',
-        'kwargs' : {
-            'coefs' : global_coefs,
-            "intercepts" :  global_intercepts,
-            "data_cols" : data_cols,
-            "extra_cols" : extra_cols,
-            "lr" : lr,
-            "seed": 42
-            }
-        },
-    name = "Analysis fit regressor, round" + str(round),
-    image = "sgarst/association-analysis:1.1",
-    organization_ids=ids,
-    collaboration_id=1
-)
-
-finished = False
-
-while (finished == False):
-    result = client.get_results(task_id=task.get("id"))
-    if not None in [result[i]['result'] for i in range(len(result)) ]:
-        finished = True
-
-
-print(result[0]['result'])
-#results = [np.load(BytesIO(result[i]['result']), allow_pickle=True) for i in range(3)]
-
-
-
-
-
-
-exit()
 
 ## Parameter settings ##
 
@@ -106,7 +69,7 @@ for run in range(n_runs):
                     }
                 },
             name = "Analysis fit regressor, round" + str(round),
-            image = "sgarst/federated-learning:fedReg",
+            image = "sgarst/federated-learning:pgTest",
             organization_ids=ids,
             collaboration_id=1
         )
