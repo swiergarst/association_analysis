@@ -12,14 +12,14 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 print("Attempt login to Vantage6 API")
-# client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
-# client.authenticate("sgarst", "cUGRCaQzPnBa")
-# client.setup_encryption(None)
-
-client = Client("http://localhost", 5000, "/api")
-client.authenticate("researcher", "password")
+client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
+client.authenticate("sgarst", "cUGRCaQzPnBa")
 client.setup_encryption(None)
-ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
+
+# client = Client("http://localhost", 5000, "/api")
+# client.authenticate("researcher", "password")
+# client.setup_encryption(None)
+# ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
 #ID mapping:
 # 2 - Leiden
@@ -29,12 +29,6 @@ ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
-model = "M1"
-lr = 0.05
-
-data_cols, extra_cols = define_model(model)
-global_coefs, global_intercepts = init_global_params(data_cols, extra_cols)
-
 ## Parameter settings ##
 
 n_runs = 1 # amount of runs 
@@ -42,7 +36,7 @@ n_rounds = 10 # communication rounds between centers
 lr = 0.001 # learning rate
 model = "M1" # model selection (see analysis plan)
 write_file = False
-n_clients = 2
+n_clients = len(ids)
 
 ## init data structures ## 
 
