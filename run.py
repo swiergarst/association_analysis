@@ -12,14 +12,9 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 print("Attempt login to Vantage6 API")
-#client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
-#client.authenticate("sgarst", "cUGRCaQzPnBa")
-#client.setup_encryption(None)
-
-client = Client("http://localhost", 5000, "/api")
-client.authenticate("researcher", "password")
+client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
+client.authenticate("sgarst", "cUGRCaQzPnBa")
 client.setup_encryption(None)
-
 
 
 #ID mapping:
@@ -39,7 +34,7 @@ global_coefs, global_intercepts = init_global_params(data_cols, extra_cols)
 ## Parameter settings ##
 
 n_runs = 1 # amount of runs 
-n_rounds = 10 # communication rounds between centers
+n_rounds = 1 # communication rounds between centers
 lr = 0.0001 # learning rate
 model = "M1" # model selection (see analysis plan)
 
@@ -56,6 +51,7 @@ for run in range(n_runs):
     
     for round in range(n_rounds):
         #print(global_coefs, global_intercepts)
+        print("posting fit_round task to ids " + str(ids))
         task = client.post_task(
             input_ = {
                 'method' : 'fit_round',
@@ -69,7 +65,7 @@ for run in range(n_runs):
                     }
                 },
             name = "Analysis fit regressor, round" + str(round),
-            image = "sgarst/federated-learning:pgTest",
+            image = "sgarst/association-analysis:1.1.1",
             organization_ids=ids,
             collaboration_id=1
         )
@@ -82,11 +78,14 @@ for run in range(n_runs):
 
         while (finished == False):
             result = client.get_results(task_id=task.get("id"))
-            if not None in [result[i]['result'] for i in range(3)]:
+            if not None in [res['result'] for res in result]:
                 finished = True
 
-        results = [np.load(BytesIO(result[i]['result']), allow_pickle=True) for i in range(3)]
-
+        print("fit round task finished")
+        #results = [np.load(BytesIO(res['result']), allow_pickle=True) for res in result]
+        results = [res['result'] for res in result]
+        print(result[0]['log'])
+        print(results)
         if psycopg2.Error in results:
             print("query error: ", results)
             break

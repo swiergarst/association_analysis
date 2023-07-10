@@ -1,4 +1,12 @@
+from vantage6.client import Client
+
+
 print("posting create task")
+
+client = Client("http://localhost", 5000, "/api")
+client.authenticate("researcher", "password")
+client.setup_encryption(None)
+ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
 
 '''
@@ -20,7 +28,7 @@ task = client.post_task(
     collaboration_id=1
 )
 '''
-'''
+
 create_task = client.post_task(
     input_ = {
         'method' : 'create_db',
@@ -45,7 +53,7 @@ print("create task finished: ")
 for res in result:
     print(res['log'])
 #print([result[i]['log'] for i in range(len(result))])
-'''
+
 
 print("posting print task")
 
