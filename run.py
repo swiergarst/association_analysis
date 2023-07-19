@@ -13,7 +13,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 print("Attempt login to Vantage6 API")
 client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
-client.authenticate("sgarst", "cUGRCaQzPnBa")
+client.authenticate("sgarst", "password")
 client.setup_encryption(None)
 
 # client = Client("http://localhost", 5000, "/api")
