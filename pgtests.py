@@ -10,12 +10,12 @@ client.setup_encryption(None)
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
 
-model = "M5"
+model = "M1"
 lr = 0.05
 
 fit = False
 create = True
-pr = False
+pr = True
 image_name = "sgarst/association-analysis:pgTest"
 
 data_cols, extra_cols = define_model(model)
@@ -89,7 +89,7 @@ if pr:
         input_ = {
             'method' : 'pgdb_print',
             'kwargs' : { 
-                'col' : "metabo_age"
+        
                        }
             },
         name = "Analysis fit regressor, round" + str(round),

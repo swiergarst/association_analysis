@@ -122,18 +122,6 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     
 
 
-<<<<<<< Updated upstream
-
-
-### I probably won't need these functions anymore, but just in case I decided to keep them in this file as an archive
-
-import os
-from vantage6.tools.util import info
-import psycopg2
-
-
-=======
->>>>>>> Stashed changes
 def RPC_pgdb_print(db_client, PG_URI = None, col = None):
 
         
@@ -181,7 +169,6 @@ def RPC_create_db(db_client, PG_URI = None):
 
 
     frac_split = 0.5
-    size_tosplit = math.floor(vals.shape[1] * frac_split)
 
     rng = np.random.default_rng()
     if PG_URI == None:
@@ -200,9 +187,10 @@ def RPC_create_db(db_client, PG_URI = None):
         cursor = connection.cursor()
 
         info("connected")
-        all_cols =  ["metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category"]
+        all_cols =  ["id","metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category"]
         vals = abs(rng.standard_normal(size = (len(all_cols), 30))).astype(object)
-        
+        size_tosplit = math.floor(vals.shape[1] * frac_split)
+
 
         col_mri = all_cols.index("brain_age")
         col_mridate = all_cols.index("date_mri")
@@ -213,7 +201,7 @@ def RPC_create_db(db_client, PG_URI = None):
         cols_shared = np.array([col_id, col_birth])
 
         
-        info("adding ncdc table")
+        info("adding ncdc table, dropping old data")
         cursor.execute("DROP TABLE IF EXISTS ncdc")
         cursor.execute("CREATE TABLE ncdc ()")
         
@@ -226,7 +214,7 @@ def RPC_create_db(db_client, PG_URI = None):
                 query = "ALTER TABLE ncdc ADD " + col + " date;"
 
             else:
-                query = "ALTER TABLE ncdc ADD " + col + " int;"
+                query = "ALTER TABLE ncdc ADD " + col + " numeric;"
             cursor.execute(query)
             #cursor.execute("""ALTER TABLE ncdc ADD %s float;""", (col,))
 
@@ -240,9 +228,13 @@ def RPC_create_db(db_client, PG_URI = None):
         vals_split1 = np.copy(vals[:,:size_tosplit])
         vals_split2 = np.copy(vals[:,:size_tosplit])
 
-        vals_split1[split_mask & ~share_mask,:] = np.NaN
-        vals_split2[~split_mask & ~share_mask,:] = np.NaN
+        _NULL = psycopg2.extensions.AsIs("NULL").getquoted()
+        
+    
+        vals_split1[split_mask & ~share_mask,:] = None
+        vals_split2[~split_mask & ~share_mask,:] = None
 
+        #info(str(vals_split1))
         vals_nosplit = vals[:, size_tosplit:]
 
         vals = np.concatenate((vals_split1, vals_split2, vals_nosplit), axis = 1)
@@ -253,7 +245,9 @@ def RPC_create_db(db_client, PG_URI = None):
             #query = "INSERT INTO ncdc '" + col + "' VALUES " + str(value)
             #cursor.execute(query)
 
-            cursor.execute("INSERT INTO ncdc VALUES {}".format(tuple(value)))
+            cursor.execute("""INSERT INTO ncdc (id, metabo_age, brain_age, date_metabolomics, date_mri, birth_year, sex, dm, bmi, education_category)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);""",
+        (value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8], value[9]))
         
 
 
