@@ -16,7 +16,7 @@ lr = 0.05
 fit = False
 create = True
 pr = False
-image_name = "sgarst/association-analysis:1.1.2"
+image_name = "sgarst/association-analysis:pgTest"
 
 data_cols, extra_cols = define_model(model)
 global_coefs, global_intercepts = init_global_params(data_cols, extra_cols)
@@ -118,8 +118,9 @@ if pr:
 #results = [np.load(BytesIO(result[i]['result']), allow_pickle=True) for i in range(3)]
 
 
+### I probably won't need these functions anymore, but just in case I decided to keep them in this file as an archive
 
+import os
+from vantage6.tools.util import info
+import psycopg2
 
-
-
-exit()

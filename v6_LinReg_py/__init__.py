@@ -113,7 +113,6 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
 
     loss = np.mean((model.predict(X_test) - y_test) **2)
 
-    #TODO: how do we make sure which coefs correspond to which covariates?
     return {
         "param": (model.coef_, model.intercept_),
         "data_cols" : data_cols,
@@ -123,6 +122,7 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     
 
 
+<<<<<<< Updated upstream
 
 
 ### I probably won't need these functions anymore, but just in case I decided to keep them in this file as an archive
@@ -132,6 +132,8 @@ from vantage6.tools.util import info
 import psycopg2
 
 
+=======
+>>>>>>> Stashed changes
 def RPC_pgdb_print(db_client, PG_URI = None, col = None):
 
         
@@ -178,6 +180,9 @@ def RPC_pgdb_print(db_client, PG_URI = None, col = None):
 def RPC_create_db(db_client, PG_URI = None):
 
 
+    frac_split = 0.5
+    size_tosplit = math.floor(vals.shape[1] * frac_split)
+
     rng = np.random.default_rng()
     if PG_URI == None:
         PG_URI = 'postgresql://{}:{}@{}:{}'.format(
@@ -197,14 +202,24 @@ def RPC_create_db(db_client, PG_URI = None):
         info("connected")
         all_cols =  ["metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category"]
         vals = abs(rng.standard_normal(size = (len(all_cols), 30))).astype(object)
-        #print(len(all_cols))
+        
+
+        col_mri = all_cols.index("brain_age")
+        col_mridate = all_cols.index("date_mri")
+        col_birth = all_cols.index("birth_year")
+        col_id = all_cols.index("id")
+
+        cols_split = np.array([col_mri, col_mridate])
+        cols_shared = np.array([col_id, col_birth])
 
         
         info("adding ncdc table")
         cursor.execute("DROP TABLE IF EXISTS ncdc")
         cursor.execute("CREATE TABLE ncdc ()")
+        
         for i, col in enumerate(all_cols):
             if col == "date_metabolomics" or col == "date_mri":
+
                 #modify the value in 'vals' for these columns
                 base_time = np.datetime64('2010-01-01')
                 vals[i,:] = np.array(base_time + rng.integers(0, 2000, size = len(vals[i,:]))).astype(str)
@@ -214,6 +229,25 @@ def RPC_create_db(db_client, PG_URI = None):
                 query = "ALTER TABLE ncdc ADD " + col + " int;"
             cursor.execute(query)
             #cursor.execute("""ALTER TABLE ncdc ADD %s float;""", (col,))
+
+        info("splitting dummy data")
+        split_mask = np.zeros(len(all_cols), dtype= bool)
+        split_mask[cols_split] = True
+        share_mask = np.zeros(len(all_cols), dtype=bool)
+        share_mask[cols_shared] = True
+
+
+        vals_split1 = np.copy(vals[:,:size_tosplit])
+        vals_split2 = np.copy(vals[:,:size_tosplit])
+
+        vals_split1[split_mask & ~share_mask,:] = np.NaN
+        vals_split2[~split_mask & ~share_mask,:] = np.NaN
+
+        vals_nosplit = vals[:, size_tosplit:]
+
+        vals = np.concatenate((vals_split1, vals_split2, vals_nosplit), axis = 1)
+
+
         info("adding dummy data to ncdc table")
         for value in vals.T:
             #query = "INSERT INTO ncdc '" + col + "' VALUES " + str(value)
