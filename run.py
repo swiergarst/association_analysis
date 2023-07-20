@@ -32,7 +32,7 @@ ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 ## Parameter settings ##
 
 n_runs = 1 # amount of runs 
-n_rounds = 10 # communication rounds between centers
+n_rounds = 1 # communication rounds between centers
 lr = 0.001 # learning rate
 model = "M1" # model selection (see analysis plan)
 write_file = False
@@ -64,7 +64,7 @@ for run in range(n_runs):
                     }
                 },
             name = "Analysis fit regressor, round" + str(round),
-            image = "sgarst/association-analysis:1.2.1",
+            image = "sgarst/association-analysis:1.2.2",
             organization_ids=ids,
             collaboration_id=1
         )
