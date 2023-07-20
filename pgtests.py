@@ -117,10 +117,3 @@ if pr:
 #print(result[0]['result'])
 #results = [np.load(BytesIO(result[i]['result']), allow_pickle=True) for i in range(3)]
 
-
-### I probably won't need these functions anymore, but just in case I decided to keep them in this file as an archive
-
-import os
-from vantage6.tools.util import info
-import psycopg2
-

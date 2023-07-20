@@ -5,7 +5,6 @@ import math
 import os
 import psycopg2
 import pandas as pd
-from datetime import datetime
 
 def master():
     pass
@@ -168,7 +167,7 @@ def RPC_pgdb_print(db_client, PG_URI = None, col = None):
 def RPC_create_db(db_client, PG_URI = None):
 
 
-    frac_split = 0.5
+    frac_split = 1
 
     rng = np.random.default_rng()
     if PG_URI == None:
@@ -192,6 +191,7 @@ def RPC_create_db(db_client, PG_URI = None):
         size_tosplit = math.floor(vals.shape[1] * frac_split)
 
 
+           
         col_mri = all_cols.index("brain_age")
         col_mridate = all_cols.index("date_mri")
         col_birth = all_cols.index("birth_year")
@@ -200,24 +200,48 @@ def RPC_create_db(db_client, PG_URI = None):
         cols_split = np.array([col_mri, col_mridate])
         cols_shared = np.array([col_id, col_birth])
 
-        
+
+        #modify the value in 'vals' for the non-numeric columns
+        cols_datetime = np.array([col_mridate, all_cols.index("date_metabolomics")])
+        cols_binary = np.array([all_cols.index("dm")])
+        cols_integer = np.array([all_cols.index("id"), all_cols.index("birth_year"), all_cols.index("sex"), all_cols.index("education_category")])
+
+        base_time = np.datetime64('2010-01-01')
+        vals[cols_datetime,:] = np.array(base_time + rng.integers(0, 2000, size = (len(cols_datetime), len(vals[0,:])))).astype(str)
+        vals[cols_binary, :] = vals[cols_binary, :].astype(bool)
+        vals[cols_integer,:] = vals[cols_integer,:].astype(int)
+        #vals[all_cols.index("date_metabolomics"),:] = np.array(base_time + rng.integers(0, 2000, size = len(vals[0,:]))).astype(str)
+
+
         info("adding ncdc table, dropping old data")
         cursor.execute("DROP TABLE IF EXISTS ncdc")
         cursor.execute("CREATE TABLE ncdc ()")
         
+        cursor.execute("ALTER TABLE ncdc \
+            ADD id bigint, \
+            ADD metabo_age numeric, \
+            ADD brain_age numeric, \
+            ADD date_metabolomics date, \
+            ADD date_mri date, \
+            ADD birth_year integer, \
+            ADD sex integer, \
+            ADD dm boolean, \
+            ADD bmi numeric, \
+            ADD education_category integer")
+
+
+        '''
         for i, col in enumerate(all_cols):
             if col == "date_metabolomics" or col == "date_mri":
 
-                #modify the value in 'vals' for these columns
-                base_time = np.datetime64('2010-01-01')
-                vals[i,:] = np.array(base_time + rng.integers(0, 2000, size = len(vals[i,:]))).astype(str)
+
                 query = "ALTER TABLE ncdc ADD " + col + " date;"
 
             else:
                 query = "ALTER TABLE ncdc ADD " + col + " numeric;"
             cursor.execute(query)
             #cursor.execute("""ALTER TABLE ncdc ADD %s float;""", (col,))
-
+        '''
         info("splitting dummy data")
         split_mask = np.zeros(len(all_cols), dtype= bool)
         split_mask[cols_split] = True
