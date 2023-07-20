@@ -187,7 +187,7 @@ def RPC_create_db(db_client, PG_URI = None):
 
         info("connected")
         all_cols =  ["id","metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category"]
-        vals = abs(rng.standard_normal(size = (len(all_cols), 30))).astype(object)
+        vals = abs(rng.choice(2000, size = (len(all_cols), 30), replace = False)).astype(object)
         size_tosplit = math.floor(vals.shape[1] * frac_split)
 
 
