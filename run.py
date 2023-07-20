@@ -12,13 +12,13 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 print("Attempt login to Vantage6 API")
-client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
-client.authenticate("sgarst", "password")
-client.setup_encryption(None)
-
-# client = Client("http://localhost", 5000, "/api")
-# client.authenticate("researcher", "password")
+# client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
+# client.authenticate("sgarst", "password")
 # client.setup_encryption(None)
+
+client = Client("http://localhost", 5000, "/api")
+client.authenticate("researcher", "password")
+client.setup_encryption(None)
 # ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
 #ID mapping:
@@ -64,7 +64,7 @@ for run in range(n_runs):
                     }
                 },
             name = "Analysis fit regressor, round" + str(round),
-            image = "sgarst/association-analysis:1.1.2",
+            image = "sgarst/association-analysis:1.2.1",
             organization_ids=ids,
             collaboration_id=1
         )
@@ -81,10 +81,11 @@ for run in range(n_runs):
                 finished = True
 
         print("fit round task finished")
-        results = [np.load(BytesIO(res['result']), allow_pickle=True) for res in result]
         #results = [res['result'] for res in result]
         for res in result:
             print(res['log'])
+        results = [np.load(BytesIO(res['result']), allow_pickle=True) for res in result]
+
         print(results)
         if psycopg2.Error in results:
             print("query error: ", results)

@@ -20,7 +20,7 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
 
     # in case we want to use different columns later on, no need to change image this way
     if None in all_cols:
-        all_cols =  ["metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category"]
+        all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category"]
     
     # could also use this to set URI
     if PG_URI == None:
@@ -53,8 +53,14 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     except psycopg2.Error as e:
         return e
 
-    info("dataframe built")
+
+    merge_cols = all_cols.copy()
+    merge_cols.remove("id")
+    data_df = data_df.groupby(["id"]).agg({col : 'first' for col in merge_cols}).reset_index()
     data = data_df[all_cols].dropna()
+    info("dataframe built")
+
+
 
     blood_dates = np.array([date.strftime("%Y") for date in data["date_metabolomics"].values]).astype(int)
     mri_dates = np.array([date.strftime("%Y") for date in data["date_mri"].values]).astype(int)
@@ -101,12 +107,12 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     model.coef_ = np.copy(coefs)
     model.intercept_ = np.copy(intercepts)
     
-    model.partial_fit(X_train, y_train[:,0])
+    model.partial_fit(X_train.astype(float), y_train[:,0].astype(int))
 
     info("model fitted")
 
 
-    loss = np.mean((model.predict(X_test) - y_test) **2)
+    loss = np.mean((model.predict(X_test) - int(y_test)) **2)
 
     #TODO: how do we make sure which coefs correspond to which covariates?
     return {
