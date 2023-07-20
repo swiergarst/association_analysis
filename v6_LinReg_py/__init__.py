@@ -54,13 +54,10 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
         return e
 
 
-    info("pre-merge data_df shape: " + str(data_df.shape))
-    info(str(data_df.head()))
     merge_cols = all_cols.copy()
     merge_cols.remove("id")
     data_df = data_df.groupby(["id"]).agg({col : 'first' for col in merge_cols}).reset_index()
-    info("pre-dropna data_df shape: " + str(data_df.shape))
-    info(str(data_df.head()))
+
     data = data_df[all_cols].dropna()
     info("dataframe built")
 
@@ -114,17 +111,10 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     model.partial_fit(X_train.astype(float), y_train[:,0].astype(int))
 
     info("model fitted")
-    info("data_df shape: " + str(data_df.shape))
-    info("data shape: " + str(data.shape))
-    info("X shape: "+ str(X.shape))
-    info("y shape: " + str(y.shape))
-    info("y_train shape: " + str(y_train.shape))
-    info("y_test shape:" +str(y_test.shape))
 
 
     loss = np.mean((model.predict(X_test) - y_test.astype(int)) **2)
 
-    #TODO: how do we make sure which coefs correspond to which covariates?
     return {
         "param": (model.coef_, model.intercept_),
         "data_cols" : data_cols,
