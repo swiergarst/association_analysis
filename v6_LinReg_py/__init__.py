@@ -124,7 +124,6 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     sort_idx = np.argsort(y, axis = 0)
     res = global_pred - y[:,0]
     
-    info(str(sort_idx))
     sorted_res = res[sort_idx]
     sorted_y = y[sort_idx]
 
@@ -142,11 +141,7 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     bin_ranges[1, -1] = sorted_y[-1]
 
     info("making boxplot")
-    info(str(model.predict(X).shape))
-    info(str(res.shape))
-    info(str(sorted_res.shape))
-    # info(str(binned_res))
-    # info(str(len(binned_res[0])))
+
     fig = plt.figure()
     ax = fig.add_subplot(111)
     bp = ax.boxplot(binned_res)
@@ -157,7 +152,6 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
         "data_cols" : data_cols,
         "loss": global_loss,
         "size": y_train.shape[0],
-        "res" : binned_res,
         "resplot": {
             "fig" : fig,
             "ax" : ax,

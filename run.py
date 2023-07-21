@@ -84,9 +84,9 @@ for run in range(n_runs):
         print("fit round task finished")
         #results = [res['result'] for res in result]
         
-        for res in result:
-            print(res['log'])
-        
+        # for res in result:
+        #     print(res['log'])
+
         results = [np.load(BytesIO(res['result']), allow_pickle=True) for res in result]
 
         #print(results)
@@ -124,6 +124,7 @@ for run in range(n_runs):
         global_coefs = average(local_coefs, dataset_sizes)
         global_intercepts = average(local_intercepts, dataset_sizes)
 
+fig1.show()
 plt.show()
 # write output to json file
 final_results = {
