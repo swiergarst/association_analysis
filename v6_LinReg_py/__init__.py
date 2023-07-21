@@ -6,11 +6,12 @@ import os
 import psycopg2
 import pandas as pd
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 def master():
     pass
 
-def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = [None]):
+def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = [None], n_bins = 10):
 
 
     info("starting fit_round")
@@ -62,7 +63,6 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     info("dataframe built")
 
 
-
     blood_dates = np.array([date.strftime("%Y") for date in data["date_metabolomics"].values]).astype(int)
     mri_dates = np.array([date.strftime("%Y") for date in data["date_mri"].values]).astype(int)
 
@@ -93,6 +93,9 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     X = data[data_cols].values
     y = data["brain_age"].values.reshape(-1, 1)
 
+    vals_per_bin = math.ceil(n_bins/len(y))
+    assert(vals_per_bin > 2, "too many bins for the amount of data we have")
+
     train_inds = rng.choice(len(X), math.floor(len(X)* 0.8), replace=False)
     train_inds = np.sort(train_inds)
     train_mask = np.zeros((len(X)), dtype=bool)
@@ -115,10 +118,47 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
 
     loss = np.mean((model.predict(X_test) - y_test.astype(int)) **2)
 
+    #metabo_pred = model.predict(X)
+    sort_idx = np.argsort(y)
+
+
+
+    res = model.predict(X) - y
+
+    sorted_res = res[sort_idx]
+    sorted_y = y[sort_idx]
+
+    binned_res = []
+
+    bin_ranges = np.zeros((2, n_bins))
+    
+
+    for b in range(n_bins - 1):
+        bin_vals = list(sorted_res[b * vals_per_bin : (b+1) * vals_per_bin])
+        binned_res.append(bin_vals)
+        bin_ranges[0,b] = sorted_y[b*vals_per_bin]
+        bin_ranges[1,b] = sorted_y[(b+1) * vals_per_bin]
+
+    binned_res.append(list(res[(n_bins-1) * vals_per_bin:]))
+    bin_ranges[0,-1] = bin_ranges[1, -2]
+    bin_ranges[1, -1] = sorted_y[-1]
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    bp = ax.boxplot(binned_res)
+
+
     return {
         "param": (model.coef_, model.intercept_),
         "data_cols" : data_cols,
         "loss": loss,
-        "size": y_train.shape[0]
+        "size": y_train.shape[0],
+        "resplot": {
+            "fig" : fig,
+            "ax" : ax,
+            "bp" : bp,
+            "ranges" : bin_ranges
+        }
     }
     
