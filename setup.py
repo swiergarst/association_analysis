@@ -15,7 +15,7 @@ here = path.abspath(path.dirname(__file__))
 # setup the package
 setup(
     name='v6_LinReg_py',
-    version="1.1.0",
+    version="1.2.3",
     description='federated Linear Regression',
     #long_description=long_description,
     #long_description_content_type='text/markdown',
@@ -26,7 +26,8 @@ setup(
         'scikit-learn==1.0.2',
         'numpy>=1.16.4',
         'pandas>=1.3.5',
-        'psycopg2-binary==2.9.6'
+        'psycopg2-binary==2.9.6',
+        'matplotlib>=3.5.3'
     ]
 
 )

@@ -7,6 +7,7 @@ import datetime
 import psycopg2
 from utils import init_global_params, average, define_model
 import time
+import matplotlib.pyplot as plt
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -64,7 +65,7 @@ for run in range(n_runs):
                     }
                 },
             name = "Analysis fit regressor, round" + str(round),
-            image = "sgarst/association-analysis:1.2.2",
+            image = "sgarst/association-analysis:1.2.3",
             organization_ids=ids,
             collaboration_id=1
         )
@@ -82,11 +83,24 @@ for run in range(n_runs):
 
         print("fit round task finished")
         #results = [res['result'] for res in result]
+        '''
         for res in result:
             print(res['log'])
+        '''
         results = [np.load(BytesIO(res['result']), allow_pickle=True) for res in result]
 
-        print(results)
+        #print(results)
+
+        fig1 = results[0]['resplot']['fig']
+        ax1 = results[0]['resplot']['ax']
+        ax1.set_title("figure uno")
+        # fig1.show()
+        plt.show()
+        print(fig1)
+
+        exit()
+        # ax1.show()
+
         if psycopg2.Error in results:
             print("query error: ", results)
             break
