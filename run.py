@@ -33,7 +33,7 @@ ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 ## Parameter settings ##
 
 n_runs = 1 # amount of runs 
-n_rounds = 1 # communication rounds between centers
+n_rounds = 3 # communication rounds between centers
 lr = 0.001 # learning rate
 model = "M1" # model selection (see analysis plan)
 write_file = False
@@ -83,22 +83,32 @@ for run in range(n_runs):
 
         print("fit round task finished")
         #results = [res['result'] for res in result]
-        '''
+        
         for res in result:
             print(res['log'])
-        '''
+        
         results = [np.load(BytesIO(res['result']), allow_pickle=True) for res in result]
 
         #print(results)
 
         fig1 = results[0]['resplot']['fig']
-        ax1 = results[0]['resplot']['ax']
-        ax1.set_title("figure uno")
-        # fig1.show()
-        plt.show()
-        print(fig1)
+        fig2 = results[1]['resplot']['fig']
 
-        exit()
+        ax1 = results[0]['resplot']['ax']
+        bp1 = results[0]['resplot']['bp']
+        ax1.set_title("figure uno")
+        minlim1 = min([box.get_ydata()[1] for box in bp1['whiskers']])
+        maxlim1 = max([box.get_ydata()[1] for box in bp1['whiskers']])
+
+        plt.close(fig1)
+        plt.close(fig2)
+        # ax1.set_ylim([minlim1 , maxlim1*1.05])
+
+        # ax1.set_ylim([0, 20])
+        # fig1.show()
+
+
+        
         # ax1.show()
 
         if psycopg2.Error in results:
@@ -114,7 +124,7 @@ for run in range(n_runs):
         global_coefs = average(local_coefs, dataset_sizes)
         global_intercepts = average(local_intercepts, dataset_sizes)
 
-
+plt.show()
 # write output to json file
 final_results = {
     "lr" : lr,

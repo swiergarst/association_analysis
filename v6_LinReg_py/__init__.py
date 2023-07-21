@@ -93,8 +93,8 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     X = data[data_cols].values.astype(float)
     y = data["brain_age"].values.reshape(-1, 1).astype(int)
 
-    vals_per_bin = math.ceil(n_bins/len(y))
-    assert(vals_per_bin > 2, "too many bins for the amount of data we have")
+    vals_per_bin = math.ceil(len(y)/n_bins)
+    assert(vals_per_bin < 2, "too many bins for the amount of data we have")
 
     train_inds = rng.choice(len(X), math.floor(len(X)* 0.8), replace=False)
     train_inds = np.sort(train_inds)
@@ -111,16 +111,20 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     model.coef_ = np.copy(coefs)
     model.intercept_ = np.copy(intercepts)
     
+    global_pred = model.predict(X)
+
     model.partial_fit(X_train, y_train[:,0])
 
     info("model fitted")
+    global_loss = np.mean((global_pred - y_test) **2)
     loss = np.mean((model.predict(X_test) - y_test) **2)
 
     info("creating boxplot values")
     #metabo_pred = model.predict(X)
-    sort_idx = np.argsort(y)
-    res = model.predict(X) - y[:,0]
-
+    sort_idx = np.argsort(y, axis = 0)
+    res = global_pred - y[:,0]
+    
+    info(str(sort_idx))
     sorted_res = res[sort_idx]
     sorted_y = y[sort_idx]
 
@@ -151,8 +155,9 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     return {
         "param": (model.coef_, model.intercept_),
         "data_cols" : data_cols,
-        "loss": loss,
+        "loss": global_loss,
         "size": y_train.shape[0],
+        "res" : binned_res,
         "resplot": {
             "fig" : fig,
             "ax" : ax,
