@@ -164,10 +164,9 @@ def RPC_pgdb_print(db_client, PG_URI = None, col = None):
 
 
 
-def RPC_create_db(db_client, PG_URI = None):
+def RPC_create_db(db_client, PG_URI = None, frac_split = 1, n_vals = 36):
 
 
-    frac_split = 1
 
     rng = np.random.default_rng()
     if PG_URI == None:
@@ -187,7 +186,7 @@ def RPC_create_db(db_client, PG_URI = None):
 
         info("connected")
         all_cols =  ["id","metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category"]
-        vals = abs(rng.choice(2000, size = (len(all_cols), 30), replace = False)).astype(object)
+        vals = abs(rng.choice(2000, size = (len(all_cols), n_vals), replace = False)).astype(object)
         size_tosplit = math.floor(vals.shape[1] * frac_split)
 
 

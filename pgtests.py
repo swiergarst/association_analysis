@@ -60,7 +60,7 @@ if create:
     create_task = client.post_task(
         input_ = {
             'method' : 'create_db',
-            'kwargs' : {            }
+            'kwargs' : {         }
             },
         name = "Analysis fit regressor, round" + str(round),
         image = image_name,
