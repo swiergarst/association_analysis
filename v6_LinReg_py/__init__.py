@@ -124,13 +124,16 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     sort_idx = np.argsort(y, axis = 0)
     res = global_pred - y[:,0]
     
+    info("sorting residual and y")
     sorted_res = res[sort_idx]
     sorted_y = y[sort_idx]
 
     binned_res = []
     bin_ranges = np.zeros((2, n_bins))
     
+    info("binning residual")
     for b in range(n_bins - 1):
+        info("binning values " + str(b*vals_per_bin) +  " to " + str((b+1) * vals_per_bin))
         bin_vals = list(sorted_res[b * vals_per_bin : (b+1) * vals_per_bin,0])
         binned_res.append(bin_vals)
         bin_ranges[0,b] = sorted_y[b*vals_per_bin]

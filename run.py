@@ -61,11 +61,12 @@ for run in range(n_runs):
                     "data_cols" : data_cols,
                     "extra_cols" : extra_cols,
                     "lr" : lr,
-                    "seed": 42
+                    "seed": 42,
+                    "n_bins" : 1
                     }
                 },
             name = "Analysis fit regressor, round" + str(round),
-            image = "sgarst/association-analysis:1.2.3",
+            image = "sgarst/association-analysis:1.3.1",
             organization_ids=ids,
             collaboration_id=1
         )
@@ -84,8 +85,8 @@ for run in range(n_runs):
         print("fit round task finished")
         #results = [res['result'] for res in result]
         
-        # for res in result:
-        #     print(res['log'])
+        for res in result:
+            print(res['log'])
 
         results = [np.load(BytesIO(res['result']), allow_pickle=True) for res in result]
 
