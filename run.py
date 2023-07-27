@@ -29,18 +29,18 @@ client.setup_encryption(None)
 
 
 #ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
-ids = [2]
+ids = [2, 3]
 
 ## Parameter settings ##
 
-n_runs = 5 # amount of runs 
-n_rounds = 40 # communication rounds between centers
+n_runs = 1 # amount of runs 
+n_rounds = 20 # communication rounds between centers
 lr = 0.000005 # learning rate
 model = "M1" # model selection (see analysis plan)
-n_bins =5
+n_bins = 10
 write_file = True
 n_clients = len(ids)
-
+seed_offset = 0
 ## init data structures ## 
 
 betas = np.zeros((n_runs, n_rounds, n_clients))
@@ -48,8 +48,8 @@ losses = np.zeros_like(betas)
 data_cols, extra_cols = define_model(model)
 
 for run in tqdm(range(n_runs)):
-    param_seed = run
-    tt_split_seed = run
+    param_seed = run + seed_offset
+    tt_split_seed = run + seed_offset
     # federated iterative process
     global_coefs, global_intercepts = init_global_params(data_cols, extra_cols, param_seed = param_seed)
     
@@ -64,6 +64,7 @@ for run in tqdm(range(n_runs)):
                     "intercepts" :  global_intercepts,
                     "data_cols" : data_cols,
                     "extra_cols" : extra_cols,
+                    "all_cols" : ["id", "metabo_age", "brain_age","date_metabolomics", "date_mri","birth_year"],
                     "lr" : lr,
                     "seed": tt_split_seed,
                     "n_bins":n_bins
@@ -93,16 +94,17 @@ for run in tqdm(range(n_runs)):
                 print(result)
                 exit()
 
-
+        
         #print("fit round task finished")
         #results = [res['result'] for res in result]
         
-        #for res in result:
-        #    print(res['log'])
+        for res in result:
+            print(res['log'])
 
         results = [pickle.loads(BytesIO(res['result']).getvalue()) for res in result]
-
+        print(results[0]['size'])
         #print(results)
+
         '''
         fig1 = results[0]['resplot']['fig']
         fig2 = results[1]['resplot']['fig']
@@ -137,7 +139,7 @@ for run in tqdm(range(n_runs)):
         global_coefs = average(local_coefs, dataset_sizes)
         global_intercepts = average(local_intercepts, dataset_sizes)
         #print(global_coefs, global_intercepts)
-
+        betas[run, round, 0] = np.copy(global_coefs)
 #print(losses)
 fig1 = results[0]['resplot']['fig']
 ax1 = results[0]['resplot']['ax']
@@ -152,7 +154,8 @@ final_results = {
     "nruns" : n_runs,
     "nrounds" : n_rounds,
     "model" : model,
-    "betas" : betas.tolist(),
+    "betas" : global_coefs.tolist(),
+    "intercept" : global_intercepts.tolist(),
     "loss" : losses.tolist(),
     "bin_ranges" : branges.tolist()
 }
