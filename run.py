@@ -34,7 +34,7 @@ ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 ## Parameter settings ##
 
 n_runs = 1 # amount of runs 
-n_rounds = 3 # communication rounds between centers
+n_rounds = 1 # communication rounds between centers
 lr = 0.000005 # learning rate
 model = "M1" # model selection (see analysis plan)
 n_bins = 3
@@ -103,7 +103,7 @@ for run in range(n_runs):
         #results = [np.load(BytesIO(res['result']), allow_pickle=True) for res in result]
 
         results = [pickle.loads(BytesIO(res['result']).getvalue()) for res in result]
-        print(results[0]['size'], results[1]['size'])
+        #print(results[0]['size'], results[1]['size'])
         #print(results)
 
         '''
@@ -144,8 +144,13 @@ for run in range(n_runs):
 #print(losses)
 fig1 = results[0]['resplot']['fig']
 ax1 = results[0]['resplot']['ax']
+bp1 = results[0]['resplot']['bp']
 branges = results[0]['resplot']['ranges']
 #fig1.show()
+#print(len(bp1['boxes']))
+print(branges)
+n_boxplots = len(bp1['boxes'])
+ax1.set_xticks(np.arange(1, len(branges) + 1), [str(brange) for brange in branges])
 plt.show()
 
 print("finished! writing to file")
