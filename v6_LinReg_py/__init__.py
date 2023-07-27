@@ -11,18 +11,7 @@ import matplotlib.pyplot as plt
 def master():
     pass
 
-def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = [None], bin_width = 2):
-
-
-    info("starting fit_round")
-    #TODO: calc metaboage/health through PHT
-    
-    data_df = pd.DataFrame()
-
-    # in case we want to use different columns later on, no need to change image this way
-    if None in all_cols:
-        all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category"]
-    
+def construct_data(all_cols, data_cols, extra_cols, PG_URI = None, ):
     # could also use this to set URI
     if PG_URI == None:
         PG_URI = 'postgresql://{}:{}@{}:{}'.format(
@@ -85,16 +74,39 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
         data = data.loc[abs(data["Lag_time"]) <= 2]
         #cols.remove("Sens_2")
 
+    return data
+
+
+def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = [None], bin_width = 2):
+
+
+    info("starting fit_round")
+    #TODO: calc metaboage/health through PHT
     
-    info("calculated all covariates")
+    data_df = pd.DataFrame()
+
+    # in case we want to use different columns later on, no need to change image this way
+    if None in all_cols:
+        all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category"]
+    
+
+    
+    #info("calculated all covariates")
 
 
-    rng = np.random.default_rng(seed = seed)
+
+
+    data = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI)
     
     X = data[data_cols].values.astype(float)
-    y = data["brain_age"].values.reshape(-1, 1).astype(float)
+    
+    if "mh" in extra_cols:
+        y = data['metabo_health'].values.reshape(-1, 1,).astype(float)
+    else:
+        y = data["metabo_age"].values.reshape(-1, 1).astype(float)
+    
 
-
+    rng = np.random.default_rng(seed = seed)
     train_inds = rng.choice(len(X), math.floor(len(X)* 0.8), replace=False)
     train_inds = np.sort(train_inds)
     train_mask = np.zeros((len(X)), dtype=bool)
@@ -153,11 +165,11 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     for b in range(n_bins - 1):
 
         bin_start[b + 1] = min_age + bin_width * (b + 1)
-        info(str(bin_start[b+1]))
+        #info(str(bin_start[b+1]))
         bin_idx = np.where(np.logical_and((y >= bin_start[b]), (y < bin_start[b+1])))[0]
 
         if len(bin_idx) < 2:
-            info("too little values for boxplot, skipping")
+            #info("too little values for boxplot, skipping")
             binned_res.append([])
         else:
             bin_vals = list(res[bin_idx])
@@ -165,7 +177,7 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     
     last_bin_idx = np.where(y> bin_start[-1])[0]
     if len(last_bin_idx) < 2:
-        info("too little values for boxplot, skipping")
+        #info("too little values for boxplot, skipping")
         binned_res.append([])
     else:
         binned_res.append(list(res[last_bin_idx]))
@@ -190,3 +202,49 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
         }
     }
     
+def RPC_get_avg(db_client, PG_URI = None, col_name = "brain_age"):
+
+    if PG_URI == None:
+        PG_URI = 'postgresql://{}:{}@{}:{}'.format(
+            os.getenv("PGUSER"),
+            os.getenv("PGPASSWORD"),
+            os.getenv("PGHOST"),
+            os.getenv("PGPORT"))
+
+    try:
+        connection = psycopg2.connect(PG_URI)
+        cursor = connection.cursor()
+        tmp = cursor.execute("SELECT {} FROM ncdc".format(col_name))
+        vals = cursor.fetchall()
+
+
+    except psycopg2.Error as e:
+        return e
+    
+    return{
+        "mean" : np.mean(vals),
+        "size" : vals.shape[0]
+    }
+    
+
+def RPC_calc_se(db_client, global_mean, global_coefs, global_inter, data_cols, extra_cols, all_cols = [None], PG_URI = None):
+
+
+    if None in all_cols:
+        all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category"]
+    
+
+    data = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI)
+    X = data["brain_age"].values.astype(float)
+    y = data["metabo_age"].values.reshape(-1, 1).astype(float)
+    
+
+    model = SGDRegressor(loss="squared_error", penalty=None, max_iter = 1, eta0=lr)
+    
+    model.coef_ = np.copy(global_coefs)
+    model.intercept_ = np.copy(global_inter)
+    
+    global_pred = model.predict(X)
+
+    top = (y - global_pred)**2
+    bot = (X - global_mean)**2

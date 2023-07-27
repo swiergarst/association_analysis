@@ -36,26 +36,26 @@ def average(params, sizes):
 
 def define_model(model):
     if (model == "M1"):
-        data_cols = ['metabo_age']
+        data_cols = ['brain_age']
         extra_cols = [None]
     elif (model == "M2"):
-        data_cols = ["metabo_age", "sex", "dm"]
+        data_cols = ["brain_age", "sex", "dm"]
         extra_cols = ["Age", "Lag_time"]
     elif (model == "M3"):
-        data_cols = ["metabo_age", "sex", "dm", "bmi", "education_category"]
+        data_cols = ["brain_age", "sex", "dm", "bmi", "education_category"]
         extra_cols = ["Age", "Lag_time"]
     elif (model == "M4"):
-        data_cols = ["metabo_age", "Age", "sex", "Lag_time", "dm", "bmi", "education_category"]
+        data_cols = ["brain_age", "Age", "sex", "Lag_time", "dm", "bmi", "education_category"]
         extra_cols = ["Age", "Lag_time", "Sens_1"]
     elif (model == "M5"):
-        data_cols = ["metabo_age", "Age", "sex", "Lag_time", "dm", "bmi", "education_category"]
+        data_cols = ["brain_age", "Age", "sex", "Lag_time", "dm", "bmi", "education_category"]
         extra_cols = ["Age", "Lag_time", "Sens_2"]
     elif (model == "M6"):
-        data_cols = ["metabo_health", "Age", "sex", "Lag_time", "dm"]
-        extra_cols = ["Age", "Lag_time"]
+        data_cols = ["brain_age", "Age", "sex", "Lag_time", "dm"]
+        extra_cols = ["Age", "Lag_time", "mh"]
     elif (model == "M7"):
-        data_cols = ["metabo_health", "Age", "sex", "Lag_time", "dm", "bmi", "education_category"]
-        extra_cols = ["Age", "Lag_time"]
+        data_cols = ["brain_age", "Age", "sex", "Lag_time", "dm", "bmi", "education_category"]
+        extra_cols = ["Age", "Lag_time", "mh"]
     else:
         return ValueError("invalid model option")
     return data_cols, extra_cols
