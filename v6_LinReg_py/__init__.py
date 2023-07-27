@@ -55,6 +55,7 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
         return e
 
 
+    info(str(data_df['dm'].values))
     merge_cols = all_cols.copy()
     merge_cols.remove("id")
     data_df = data_df.groupby(["id"]).agg({col : 'first' for col in merge_cols}).reset_index()

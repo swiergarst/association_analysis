@@ -5,7 +5,7 @@ import json
 from io import BytesIO
 import datetime
 import psycopg2
-from association_analysis.utils import init_global_params, average, define_model
+from utils import init_global_params, average, define_model
 import time
 import matplotlib.pyplot as plt
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -13,14 +13,14 @@ import pickle
 from tqdm import tqdm
 
 print("Attempt login to Vantage6 API")
-client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
-client.authenticate("sgarst", "password")
-client.setup_encryption(None)
+# client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
+# client.authenticate("sgarst", "password")
+# client.setup_encryption(None)
 
-#client = Client("http://localhost", 5000, "/api")
-#client.authenticate("researcher", "password")
-#client.setup_encryption(None)
-# ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
+client = Client("http://localhost", 5000, "/api")
+client.authenticate("researcher", "password")
+client.setup_encryption(None)
+ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
 #ID mapping:
 # 2 - Leiden
@@ -28,17 +28,17 @@ client.setup_encryption(None)
 # 4 - Maastricht
 
 
-#ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
-ids = [2, 3]
+ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
+#ids = [2, 3]
 
 ## Parameter settings ##
 
 n_runs = 1 # amount of runs 
-n_rounds = 20 # communication rounds between centers
+n_rounds = 3 # communication rounds between centers
 lr = 0.000005 # learning rate
 model = "M1" # model selection (see analysis plan)
-n_bins = 10
-write_file = True
+n_bins = 3
+write_file = False
 n_clients = len(ids)
 seed_offset = 0
 ## init data structures ## 
@@ -47,13 +47,13 @@ betas = np.zeros((n_runs, n_rounds, n_clients))
 losses = np.zeros_like(betas)
 data_cols, extra_cols = define_model(model)
 
-for run in tqdm(range(n_runs)):
+for run in range(n_runs):
     param_seed = run + seed_offset
     tt_split_seed = run + seed_offset
     # federated iterative process
     global_coefs, global_intercepts = init_global_params(data_cols, extra_cols, param_seed = param_seed)
     
-    for round in tqdm(range(n_rounds)):
+    for round in range(n_rounds):
         #print(global_coefs, global_intercepts)
         #print("posting fit_round task to ids " + str(ids))
         task = client.post_task(
@@ -64,14 +64,14 @@ for run in tqdm(range(n_runs)):
                     "intercepts" :  global_intercepts,
                     "data_cols" : data_cols,
                     "extra_cols" : extra_cols,
-                    "all_cols" : ["id", "metabo_age", "brain_age","date_metabolomics", "date_mri","birth_year"],
+                    "all_cols" : ["id", "metabo_age", "brain_age","date_metabolomics", "date_mri","birth_year", "dm"],
                     "lr" : lr,
                     "seed": tt_split_seed,
                     "n_bins":n_bins
                     }
                 },
             name = "Analysis fit regressor, round" + str(round),
-            image = "sgarst/association-analysis:1.3",
+            image = "sgarst/association-analysis:1.3.1",
             organization_ids=ids,
             collaboration_id=1
         )
@@ -104,7 +104,7 @@ for run in tqdm(range(n_runs)):
         #results = [np.load(BytesIO(res['result']), allow_pickle=True) for res in result]
 
         results = [pickle.loads(BytesIO(res['result']).getvalue()) for res in result]
-        print(results[0]['size'])
+        print(results[0]['size'], results[1]['size'])
         #print(results)
 
         '''
