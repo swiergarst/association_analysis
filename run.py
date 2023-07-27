@@ -42,7 +42,7 @@ write_file = False
 n_clients = len(ids)
 seed_offset = 0
 
-image_name = "sgarst/association-analysis:1.3.3"
+image_name = "sgarst/association-analysis:1.3.4"
 ## init data structures ## 
 
 betas = np.zeros((n_runs, n_rounds, n_clients))
@@ -136,7 +136,7 @@ for run in range(n_runs):
         organization_ids= ids,
         collaboration_id=1
     )
-    avg_results = get_results(client, avg_task, print_log=True)
+    avg_results = get_results(client, avg_task, print_log=False)
 
     means = np.array([result['mean'] for result in avg_results])
     sizes = np.array([result['size'] for result in avg_results])
@@ -162,7 +162,7 @@ for run in range(n_runs):
             collaboration_id=1
     )   
 
-    se_results = get_results(client, se_task, print_log = False)
+    se_results = get_results(client, se_task, print_log = True)
     tops = [result['top'] for result in se_results]
     bots = [result['bot'] for result in se_results]
     sizes = [result['size'] for result in se_results]

@@ -202,7 +202,7 @@ def RPC_calc_se(db_client, global_mean, global_coefs, global_inter, data_cols, e
     
     global_pred = model.predict(X)
 
-    top = (y - global_pred)**2
+    top = (np.subtract(y[:,0] , global_pred))**2
     bot = (ba - global_mean)**2
 
     return(
