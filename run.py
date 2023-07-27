@@ -5,7 +5,7 @@ import json
 from io import BytesIO
 import datetime
 import psycopg2
-from utils import init_global_params, average, define_model
+from utils import init_global_params, average, define_model, get_results
 import time
 import matplotlib.pyplot as plt
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -41,6 +41,8 @@ n_bins = 3
 write_file = False
 n_clients = len(ids)
 seed_offset = 0
+
+image_name = "sgarst/association-analysis:1.3.3"
 ## init data structures ## 
 
 betas = np.zeros((n_runs, n_rounds, n_clients))
@@ -70,7 +72,7 @@ for run in range(n_runs):
                     }
                 },
             name = "Analysis fit regressor, round" + str(round),
-            image = "sgarst/association-analysis:1.3.2",
+            image = image_name,
             organization_ids=ids,
             collaboration_id=1
         )
@@ -80,29 +82,9 @@ for run in range(n_runs):
         dataset_sizes = np.empty(n_clients, dtype = object)
         local_coefs = np.empty((len(global_coefs), n_clients))
         local_intercepts = np.empty((len(global_intercepts),n_clients))
-        max_attempts = 20
-        attempts = 0
-        while (finished == False):
-            attempts += 1
-            result = client.get_results(task_id=task.get("id"))
-            time.sleep(10)
-            if not None in [res['result'] for res in result]:
-                finished = True
-            if attempts > max_attempts:
-                print("max attempts exceeded")
-                print(result)
-                exit()
 
-        
-        #print("fit round task finished")
-        #results = [res['result'] for res in result]
-        
-        for res in result:
-            print(res['log'])
+        results = get_results(client, task, print_log = False)
 
-        #results = [np.load(BytesIO(res['result']), allow_pickle=True) for res in result]
-
-        results = [pickle.loads(BytesIO(res['result']).getvalue()) for res in result]
         #print(results[0]['size'], results[1]['size'])
         #print(results)
 
@@ -142,6 +124,58 @@ for run in range(n_runs):
         #print(global_coefs, global_intercepts)
         betas[run, round, 0] = np.copy(global_coefs)
 #print(losses)
+
+    print('finished model fitting, calculating standard error..')
+    avg_task = client.post_task(
+        input_= {
+            "method" : "get_avg",
+            "kwargs" : {     }
+        },
+        name= "get average",
+        image = image_name,
+        organization_ids= ids,
+        collaboration_id=1
+    )
+    avg_results = get_results(client, avg_task, print_log=True)
+
+    means = np.array([result['mean'] for result in avg_results])
+    sizes = np.array([result['size'] for result in avg_results])
+
+    global_mean = np.sum([(mean * size) for mean, size in zip(means, sizes)]) / np.sum(sizes)
+
+    print(means, global_mean)
+
+    se_task = client.post_task(
+        input_ = {
+            "method" : "calc_se",
+            "kwargs" : {
+                "global_mean" : global_mean,
+                "global_coefs" : global_coefs,
+                "global_inter" : global_intercepts,
+                "data_cols" : data_cols,
+                "extra_cols" : extra_cols,
+            }
+        },
+            name ="se calculation",
+            image = image_name,
+            organization_ids=ids,
+            collaboration_id=1
+    )   
+
+    se_results = get_results(client, se_task, print_log = False)
+    tops = [result['top'] for result in se_results]
+    bots = [result['bot'] for result in se_results]
+    sizes = [result['size'] for result in se_results]
+
+    top_sum = np.sum(tops)
+    bot_sum = np.sum(bots)
+    full_size = np.sum(sizes)
+
+    se = np.sqrt((1/(full_size - 2)) * (float(top_sum) / float(bot_sum)))
+
+    print(f'standard error: {se}')
+
+
 fig1 = results[0]['resplot']['fig']
 ax1 = results[0]['resplot']['ax']
 bp1 = results[0]['resplot']['bp']

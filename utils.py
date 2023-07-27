@@ -1,5 +1,7 @@
 import numpy as np
-
+import time
+import pickle
+from io import BytesIO
 
 # we might want to try different initializations later on
 def init_global_params(data_cols, extra_cols, param_seed = 42):
@@ -60,3 +62,24 @@ def define_model(model):
         return ValueError("invalid model option")
     return data_cols, extra_cols
 
+
+def get_results(client, task, max_attempts = 20, print_log = False):
+    finished = False
+    attempts = 0
+    while (finished == False):
+        attempts += 1
+        result = client.get_results(task_id=task.get("id"))
+        time.sleep(10)
+        if not None in [res['result'] for res in result]:
+            finished = True
+        if attempts > max_attempts:
+            print("max attempts exceeded")
+            print(result)
+            exit()
+
+    if print_log:
+        for res in result:
+            print(res['log'])
+            
+    results = [pickle.loads(BytesIO(res['result']).getvalue()) for res in result]
+    return results

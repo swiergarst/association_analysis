@@ -12,6 +12,9 @@ def master():
     pass
 
 def construct_data(all_cols, data_cols, extra_cols, PG_URI = None, ):
+    data_df = pd.DataFrame()
+
+
     # could also use this to set URI
     if PG_URI == None:
         PG_URI = 'postgresql://{}:{}@{}:{}'.format(
@@ -20,12 +23,6 @@ def construct_data(all_cols, data_cols, extra_cols, PG_URI = None, ):
             os.getenv("PGHOST"),
             os.getenv("PGPORT"))
 
-       # PG_URI = 'postgresql://{}:{}@{}:{}'.format(
-       #         os.getenv("DB_USER"),
-       ##         os.getenv("DB_PASSWORD"),
-       #         os.getenv("DB_HOST"),
-       #         os.getenv("DB_PORT"))
-   
     info("connecting to PG DB:" + str(PG_URI))
     # get data from postgres DB
     try:
@@ -43,8 +40,7 @@ def construct_data(all_cols, data_cols, extra_cols, PG_URI = None, ):
     except psycopg2.Error as e:
         return e
 
-
-    info(str(data_df['dm'].values))
+    # merge rows from same patients (but different visits)
     merge_cols = all_cols.copy()
     merge_cols.remove("id")
     data_df = data_df.groupby(["id"]).agg({col : 'first' for col in merge_cols}).reset_index()
@@ -53,26 +49,24 @@ def construct_data(all_cols, data_cols, extra_cols, PG_URI = None, ):
     info("dataframe built")
 
 
-    blood_dates = np.array([date.strftime("%Y") for date in data["date_metabolomics"].values]).astype(int)
-    mri_dates = np.array([date.strftime("%Y") for date in data["date_mri"].values]).astype(int)
+    if ("Lag_time" in extra_cols) or ("Age" in extra_cols):
+        #calculate age at blood draw and mri scan
+        blood_dates = np.array([date.strftime("%Y") for date in data["date_metabolomics"].values]).astype(int)
+        mri_dates = np.array([date.strftime("%Y") for date in data["date_mri"].values]).astype(int)
 
-    Age_met = blood_dates - data["birth_year"].values
-    Age_brain = mri_dates- data["birth_year"].values
-
-    if "Lag_time" in extra_cols:
-        data["Lag_time"] = Age_met - Age_brain
-        data_cols.append("Lag_time")
-    if "Age" in extra_cols:
-        data["Age"] = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
-        data_cols.append("Age")
-
+        Age_met = blood_dates - data["birth_year"].values
+        Age_brain = mri_dates- data["birth_year"].values
+        if "Lag_time" in extra_cols:
+            data["Lag_time"] = Age_met - Age_brain
+            data_cols.append("Lag_time")
+        if "Age" in extra_cols:
+            data["Age"] = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
+            data_cols.append("Age")
 
     if "Sens_1" in extra_cols:
         data = data.loc[abs(data['Lag_time']) <= 1]
-        #cols.remove("Sens_1")
     if "Sens_2" in extra_cols:
         data = data.loc[abs(data["Lag_time"]) <= 2]
-        #cols.remove("Sens_2")
 
     return data
 
@@ -83,19 +77,11 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     info("starting fit_round")
     #TODO: calc metaboage/health through PHT
     
-    data_df = pd.DataFrame()
 
     # in case we want to use different columns later on, no need to change image this way
     if None in all_cols:
         all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category"]
-    
-
-    
-    #info("calculated all covariates")
-
-
-
-
+ 
     data = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI)
     
     X = data[data_cols].values.astype(float)
@@ -105,7 +91,7 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     else:
         y = data["metabo_age"].values.reshape(-1, 1).astype(float)
     
-
+    # create a test train split based on seeded rng
     rng = np.random.default_rng(seed = seed)
     train_inds = rng.choice(len(X), math.floor(len(X)* 0.8), replace=False)
     train_inds = np.sort(train_inds)
@@ -118,7 +104,6 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     y_test = y[~train_mask]
 
     model = SGDRegressor(loss="squared_error", penalty=None, max_iter = 1, eta0=lr)
-    
     model.coef_ = np.copy(coefs)
     model.intercept_ = np.copy(intercepts)
     
@@ -130,28 +115,9 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     global_loss = np.mean((global_pred - y_test) **2)
     loss = np.mean((model.predict(X_test) - y_test) **2)
 
-    info("creating boxplot values")
-    #metabo_pred = model.predict(X)
-    # sort_idx = np.argsort(y, axis = 0)
+    info("binning residual")
     res = global_pred - y[:,0]
     
-    # info("sorting residual and y")
-    # sorted_res = res[sort_idx]
-    # sorted_y = y[sort_idx]
-
-
-    info("binning residual")
-    # for b in range(n_bins - 1):
-    #     info("binning values " + str(b*vals_per_bin) +  " to " + str((b+1) * vals_per_bin))
-    #     bin_vals = list(sorted_res[b * vals_per_bin : (b+1) * vals_per_bin,0])
-    #     binned_res.append(bin_vals)
-    #     bin_ranges[0,b] = sorted_y[b*vals_per_bin]
-    #     bin_ranges[1,b] = sorted_y[(b+1) * vals_per_bin]
-
-    # binned_res.append(list(sorted_res[(n_bins-1) * vals_per_bin:, 0]))
-    # bin_ranges[0,-1] = bin_ranges[1, -2]
-    # bin_ranges[1, -1] = sorted_y[-1]
-
     min_age = min(data['brain_age'].values)
     max_age = max(data['brain_age'].values)
         
@@ -204,26 +170,14 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     
 def RPC_get_avg(db_client, PG_URI = None, col_name = "brain_age"):
 
-    if PG_URI == None:
-        PG_URI = 'postgresql://{}:{}@{}:{}'.format(
-            os.getenv("PGUSER"),
-            os.getenv("PGPASSWORD"),
-            os.getenv("PGHOST"),
-            os.getenv("PGPORT"))
 
-    try:
-        connection = psycopg2.connect(PG_URI)
-        cursor = connection.cursor()
-        tmp = cursor.execute("SELECT {} FROM ncdc".format(col_name))
-        vals = cursor.fetchall()
-
-
-    except psycopg2.Error as e:
-        return e
+    cols = ['id', col_name]
+    data = construct_data(cols, cols, cols, PG_URI = PG_URI)
+    values = data[col_name].values.astype(float)
     
     return{
-        "mean" : np.mean(vals),
-        "size" : vals.shape[0]
+        "mean" : np.mean(values),
+        "size" : values.shape[0]
     }
     
 
@@ -235,11 +189,13 @@ def RPC_calc_se(db_client, global_mean, global_coefs, global_inter, data_cols, e
     
 
     data = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI)
-    X = data["brain_age"].values.astype(float)
+    ba = data["brain_age"].values.astype(float)
+
+    X = data[data_cols].values.astype(float)
     y = data["metabo_age"].values.reshape(-1, 1).astype(float)
     
 
-    model = SGDRegressor(loss="squared_error", penalty=None, max_iter = 1, eta0=lr)
+    model = SGDRegressor(loss="squared_error", penalty=None, max_iter = 1, eta0=0)
     
     model.coef_ = np.copy(global_coefs)
     model.intercept_ = np.copy(global_inter)
@@ -247,4 +203,12 @@ def RPC_calc_se(db_client, global_mean, global_coefs, global_inter, data_cols, e
     global_pred = model.predict(X)
 
     top = (y - global_pred)**2
-    bot = (X - global_mean)**2
+    bot = (ba - global_mean)**2
+
+    return(
+        {
+            "top" : top,
+            "bot" : bot,
+            "size" : y.shape[0]
+        }
+    )
