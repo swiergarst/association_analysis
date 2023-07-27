@@ -67,11 +67,10 @@ for run in range(n_runs):
                     "all_cols" : ["id", "metabo_age", "brain_age","date_metabolomics", "date_mri","birth_year", "dm"],
                     "lr" : lr,
                     "seed": tt_split_seed,
-                    "n_bins":n_bins
                     }
                 },
             name = "Analysis fit regressor, round" + str(round),
-            image = "sgarst/association-analysis:1.3.1",
+            image = "sgarst/association-analysis:1.3.2",
             organization_ids=ids,
             collaboration_id=1
         )
@@ -147,7 +146,7 @@ fig1 = results[0]['resplot']['fig']
 ax1 = results[0]['resplot']['ax']
 branges = results[0]['resplot']['ranges']
 #fig1.show()
-#plt.show()
+plt.show()
 
 print("finished! writing to file")
 # write output to json file

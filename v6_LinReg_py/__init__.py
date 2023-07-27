@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 def master():
     pass
 
-def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = [None], n_bins = 10):
+def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = [None], bin_width = 2):
 
 
     info("starting fit_round")
@@ -92,10 +92,8 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     rng = np.random.default_rng(seed = seed)
     
     X = data[data_cols].values.astype(float)
-    y = data["brain_age"].values.reshape(-1, 1).astype(int)
+    y = data["brain_age"].values.reshape(-1, 1).astype(float)
 
-    vals_per_bin = math.ceil(len(y)/n_bins)
-    assert(vals_per_bin < 2, "too many bins for the amount of data we have")
 
     train_inds = rng.choice(len(X), math.floor(len(X)* 0.8), replace=False)
     train_inds = np.sort(train_inds)
@@ -122,27 +120,55 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
 
     info("creating boxplot values")
     #metabo_pred = model.predict(X)
-    sort_idx = np.argsort(y, axis = 0)
+    # sort_idx = np.argsort(y, axis = 0)
     res = global_pred - y[:,0]
     
-    info("sorting residual and y")
-    sorted_res = res[sort_idx]
-    sorted_y = y[sort_idx]
+    # info("sorting residual and y")
+    # sorted_res = res[sort_idx]
+    # sorted_y = y[sort_idx]
+
+
+    info("binning residual")
+    # for b in range(n_bins - 1):
+    #     info("binning values " + str(b*vals_per_bin) +  " to " + str((b+1) * vals_per_bin))
+    #     bin_vals = list(sorted_res[b * vals_per_bin : (b+1) * vals_per_bin,0])
+    #     binned_res.append(bin_vals)
+    #     bin_ranges[0,b] = sorted_y[b*vals_per_bin]
+    #     bin_ranges[1,b] = sorted_y[(b+1) * vals_per_bin]
+
+    # binned_res.append(list(sorted_res[(n_bins-1) * vals_per_bin:, 0]))
+    # bin_ranges[0,-1] = bin_ranges[1, -2]
+    # bin_ranges[1, -1] = sorted_y[-1]
+
+    min_age = min(data['brain_age'].values)
+    max_age = max(data['brain_age'].values)
+        
+
+    n_bins = math.ceil((max_age - min_age) / bin_width)
 
     binned_res = []
-    bin_ranges = np.zeros((2, n_bins))
+    bin_start = np.zeros(n_bins)
     
-    info("binning residual")
+    bin_start[0] = min_age
     for b in range(n_bins - 1):
-        info("binning values " + str(b*vals_per_bin) +  " to " + str((b+1) * vals_per_bin))
-        bin_vals = list(sorted_res[b * vals_per_bin : (b+1) * vals_per_bin,0])
-        binned_res.append(bin_vals)
-        bin_ranges[0,b] = sorted_y[b*vals_per_bin]
-        bin_ranges[1,b] = sorted_y[(b+1) * vals_per_bin]
 
-    binned_res.append(list(sorted_res[(n_bins-1) * vals_per_bin:, 0]))
-    bin_ranges[0,-1] = bin_ranges[1, -2]
-    bin_ranges[1, -1] = sorted_y[-1]
+        bin_start[b + 1] = min_age + bin_width * (b + 1)
+        info(str(bin_start[b+1]))
+        bin_idx = np.where(np.logical_and((y >= bin_start[b]), (y < bin_start[b+1])))[0]
+
+        if len(bin_idx) < 2:
+            info("too little values for boxplot, skipping")
+            binned_res.append([])
+        else:
+            bin_vals = list(res[bin_idx])
+            binned_res.append(bin_vals)
+    
+    last_bin_idx = np.where(y> bin_start[-1])
+    if len(last_bin_idx) < 2:
+        info("too little values for boxplot, skipping")
+        binned_res.append([])
+    else:
+        binned_res.append(list(res[last_bin_idx]))
 
     info("making boxplot")
 
@@ -160,7 +186,7 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
             "fig" : fig,
             "ax" : ax,
             "bp" : bp,
-            "ranges" : bin_ranges
+            "ranges" : bin_start
         }
     }
     
