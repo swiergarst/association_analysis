@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 def master():
     pass
 
-def construct_data(all_cols, data_cols, extra_cols, PG_URI = None, ):
+def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = None, cat_cols = ['education_category_3', "sex"]):
     data_df = pd.DataFrame()
 
 
@@ -68,10 +68,13 @@ def construct_data(all_cols, data_cols, extra_cols, PG_URI = None, ):
     if "Sens_2" in extra_cols:
         data = data.loc[abs(data["Lag_time"]) <= 2]
 
+    if normalize:
+        data[~cat_cols] = (data[~cat_cols] - data[~cat_cols].mean())/ data[~cat_cols].std()
+
     return data
 
 
-def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = [None], bin_width = 2):
+def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = [None], cat_cols = [None], bin_width = 2):
 
 
     info("starting fit_round")
@@ -81,8 +84,11 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     # in case we want to use different columns later on, no need to change image this way
     if None in all_cols:
         all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category"]
- 
-    data = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI)
+    
+    if None in cat_cols:
+        cat_cols = ['education_category_3', 'sex']
+
+    data = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols)
     
     X = data[data_cols].values.astype(float)
     
