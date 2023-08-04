@@ -36,21 +36,21 @@ def average(params, sizes):
 
     return parameters
 
-def define_model(model):
+def define_model(model, use_dm = True):
     if (model == "M1"):
         data_cols = ['brain_age']
         extra_cols = [None]
     elif (model == "M2"):
-        data_cols = ["brain_age", "sex", "dm"]
-        extra_cols = ["Age", "Lag_time"]
+        data_cols = ["sex", "brain_age", "dm"]
+        extra_cols = ["Lag_time", "Age"]
     elif (model == "M3"):
         data_cols = ["brain_age", "sex", "dm", "bmi", "education_category"]
         extra_cols = ["Age", "Lag_time"]
     elif (model == "M4"):
-        data_cols = ["brain_age", "Age", "sex", "Lag_time", "dm", "bmi", "education_category"]
+        data_cols = ["brain_age", "Age", "sex", "dm", "bmi", "education_category"]
         extra_cols = ["Age", "Lag_time", "Sens_1"]
     elif (model == "M5"):
-        data_cols = ["brain_age", "Age", "sex", "Lag_time", "dm", "bmi", "education_category"]
+        data_cols = ["brain_age", "Age", "sex", "dm", "bmi", "education_category"]
         extra_cols = ["Age", "Lag_time", "Sens_2"]
     elif (model == "M6"):
         data_cols = ["brain_age", "Age", "sex", "Lag_time", "dm"]
@@ -60,6 +60,10 @@ def define_model(model):
         extra_cols = ["Age", "Lag_time", "mh"]
     else:
         return ValueError("invalid model option")
+
+    if (use_dm == False) and (model != "M1") :
+        data_cols.remove("dm")
+    #print(data_cols)
     return data_cols, extra_cols
 
 
