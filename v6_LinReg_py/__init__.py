@@ -55,7 +55,7 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = N
     data = data_df[all_cols].dropna()
     info("dataframe built")
     if "education_category_3" in data_cols:
-        enc = OneHotEncoder(categories = [[1, 2, 3]], sparse=False)
+        enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
         mapped_names = ["ec_1", "ec_2", "ec_3"]
         mapped_arr = enc.fit_transform(data['education_category_3'].values.reshape(-1, 1))
         data[mapped_names] = mapped_arr
