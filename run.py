@@ -5,7 +5,7 @@ import json
 from io import BytesIO
 import datetime
 import psycopg2
-from association_analysis.utils import init_global_params, average, define_model, get_results
+from utils import init_global_params, average, define_model, get_results
 import time
 import matplotlib.pyplot as plt
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -13,13 +13,13 @@ import pickle
 from tqdm import tqdm
 
 print("Attempt login to Vantage6 API")
-client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
-client.authenticate("sgarst", "password")
-client.setup_encryption(None)
+# client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
+# client.authenticate("sgarst", "password")
+# client.setup_encryption(None)
 
-#client = Client("http://localhost", 5000, "/api")
-#client.authenticate("researcher", "password")
-#client.setup_encryption(None)
+client = Client("http://localhost", 5000, "/api")
+client.authenticate("researcher", "password")
+client.setup_encryption(None)
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
 #ID mapping:
@@ -34,7 +34,7 @@ ids = [2,3]
 ## Parameter settings ##
 
 n_runs = 1 # amount of runs 
-n_rounds = 40 # communication rounds between centers
+n_rounds = 2 # communication rounds between centers
 lr = 0.000005 # learning rate
 model = "M2" # model selection (see analysis plan)
 n_bins = 10
@@ -44,7 +44,8 @@ n_clients = len(ids)
 seed_offset = 0
 
 all_cols =  ["id", "metabo_age", "brain_age","date_metabolomics", "date_mri","birth_year", "sex", "bmi" ]
-image_name = "sgarst/association-analysis:1.4"
+all_cols = [None]
+image_name = "sgarst/association-analysis:1.4.1"
 ## init data structures ## 
 
 betas = np.zeros((n_runs, n_rounds, n_clients))
@@ -85,7 +86,7 @@ for run in range(n_runs):
         local_coefs = np.empty((len(global_coefs), n_clients))
         local_intercepts = np.empty((len(global_intercepts),n_clients))
         local_cols = np.empty((n_clients), dtype = object)
-        results = get_results(client, task, print_log = False)
+        results = get_results(client, task, print_log = True)
 
         #print(results[0]['size'], results[1]['size'])
         #print(results)
@@ -166,7 +167,7 @@ for run in range(n_runs):
             collaboration_id=1
     )   
 
-    se_results = get_results(client, se_task, print_log = True)
+    se_results = get_results(client, se_task, print_log = False)
     tops = [np.sum(result['top']) for result in se_results]
     bots = [np.sum(result['bot']) for result in se_results]
     sizes = [result['size'] for result in se_results]

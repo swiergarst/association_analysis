@@ -69,12 +69,24 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = N
         data = data.loc[abs(data["Lag_time"]) <= 2]
 
     if normalize:
-        data[~cat_cols] = (data[~cat_cols] - data[~cat_cols].mean())/ data[~cat_cols].std()
+
+        #inter_list = [cat_col for cat_col in cat_cols if cat_col in data_cols]
+        #info(str(inter_list))
+        norm_cols = [col for col in data_cols if col not in cat_cols]
+        #norm_cols = data_cols.remove([cat_col for cat_col in cat_cols if cat_col in data_cols])
+        info(str(norm_cols))
+        #data_norm = data[norm_cols]
+        info(str(data['Age'].std()))
+        data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
+        info(str(data["brain_age"].values))
+        info(str(data['Age'].values))
+        info(str(data['Lag_time'].values))
+        #info(str(data['education_category_3'].values))
 
     return data
 
 
-def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = [None], cat_cols = [None], bin_width = 2):
+def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = [None], cat_cols = [None], bin_width = 2, normalize = True):
 
 
     info("starting fit_round")
@@ -83,12 +95,12 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
 
     # in case we want to use different columns later on, no need to change image this way
     if None in all_cols:
-        all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category"]
+        all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category_3"]
     
     if None in cat_cols:
         cat_cols = ['education_category_3', 'sex']
 
-    data = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols)
+    data = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize)
     
     X = data[data_cols].values.astype(float)
     

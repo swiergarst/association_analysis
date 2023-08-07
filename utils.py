@@ -44,19 +44,19 @@ def define_model(model, use_dm = True):
         data_cols = ["sex", "brain_age", "dm"]
         extra_cols = ["Lag_time", "Age"]
     elif (model == "M3"):
-        data_cols = ["brain_age", "sex", "dm", "bmi", "education_category"]
+        data_cols = ["brain_age", "sex", "dm", "bmi", "education_category_3"]
         extra_cols = ["Age", "Lag_time"]
     elif (model == "M4"):
-        data_cols = ["brain_age", "Age", "sex", "dm", "bmi", "education_category"]
+        data_cols = ["brain_age", "Age", "sex", "dm", "bmi", "education_category_3"]
         extra_cols = ["Age", "Lag_time", "Sens_1"]
     elif (model == "M5"):
-        data_cols = ["brain_age", "Age", "sex", "dm", "bmi", "education_category"]
+        data_cols = ["brain_age", "Age", "sex", "dm", "bmi", "education_category_3"]
         extra_cols = ["Age", "Lag_time", "Sens_2"]
     elif (model == "M6"):
         data_cols = ["brain_age", "Age", "sex", "Lag_time", "dm"]
         extra_cols = ["Age", "Lag_time", "mh"]
     elif (model == "M7"):
-        data_cols = ["brain_age", "Age", "sex", "Lag_time", "dm", "bmi", "education_category"]
+        data_cols = ["brain_age", "Age", "sex", "Lag_time", "dm", "bmi", "education_category_3"]
         extra_cols = ["Age", "Lag_time", "mh"]
     else:
         return ValueError("invalid model option")
