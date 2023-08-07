@@ -36,16 +36,16 @@ ids = [2,3]
 n_runs = 1 # amount of runs 
 n_rounds = 2 # communication rounds between centers
 lr = 0.000005 # learning rate
-model = "M2" # model selection (see analysis plan)
+model = "M3" # model selection (see analysis plan)
 n_bins = 10
 write_file = True
 use_dm = False
 n_clients = len(ids)
 seed_offset = 0
 
-all_cols =  ["id", "metabo_age", "brain_age","date_metabolomics", "date_mri","birth_year", "sex", "bmi" ]
-all_cols = [None]
-image_name = "sgarst/association-analysis:1.4.1"
+#all_cols =  ["id", "metabo_age", "brain_age","date_metabolomics", "date_mri","birth_year", "sex", "bmi", "dm", "education_category_3" ]
+#all_cols = [None]
+image_name = "sgarst/association-analysis:1.4.2"
 ## init data structures ## 
 
 betas = np.zeros((n_runs, n_rounds, n_clients))
@@ -53,6 +53,7 @@ losses = np.zeros_like(betas)
 data_cols, extra_cols = define_model(model, use_dm = use_dm)
 
 for run in range(n_runs):
+
     param_seed = run + seed_offset
     tt_split_seed = run + seed_offset
     # federated iterative process
@@ -69,7 +70,7 @@ for run in range(n_runs):
                     "intercepts" :  global_intercepts,
                     "data_cols" : data_cols,
                     "extra_cols" : extra_cols,
-                    "all_cols": all_cols,
+                    #"all_cols": all_cols,
                     "lr" : lr,
                     "seed": tt_split_seed,
                     }
@@ -86,31 +87,7 @@ for run in range(n_runs):
         local_coefs = np.empty((len(global_coefs), n_clients))
         local_intercepts = np.empty((len(global_intercepts),n_clients))
         local_cols = np.empty((n_clients), dtype = object)
-        results = get_results(client, task, print_log = True)
-
-        #print(results[0]['size'], results[1]['size'])
-        #print(results)
-
-        '''
-        fig1 = results[0]['resplot']['fig']
-        fig2 = results[1]['resplot']['fig']
-
-        ax1 = results[0]['resplot']['ax']
-        bp1 = results[0]['resplot']['bp']
-        ax1.set_title("figure uno")
-        minlim1 = min([box.get_ydata()[1] for box in bp1['whiskers']])
-        maxlim1 = max([box.get_ydata()[1] for box in bp1['whiskers']])
-
-        plt.close(fig1)
-        plt.close(fig2)
-        # ax1.set_ylim([minlim1 , maxlim1*1.05])
-        '''
-        # ax1.set_ylim([0, 20])
-        # fig1.show()
-
-
-        
-        # ax1.show()
+        results = get_results(client, task, print_log = False)
 
         if psycopg2.Error in results:
             print("query error: ", results)
@@ -157,7 +134,7 @@ for run in range(n_runs):
                 "global_coefs" : global_coefs,
                 "global_inter" : global_intercepts,
                 "data_cols" : data_cols,
-                "all_cols" : all_cols,
+                #"all_cols" : all_cols,
                 "extra_cols" : extra_cols,
             }
         },

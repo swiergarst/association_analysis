@@ -1,4 +1,5 @@
 from sklearn.linear_model import SGDRegressor
+from sklearn.preprocessing import OneHotEncoder
 import numpy as np
 from vantage6.tools.util import info
 import math
@@ -8,10 +9,15 @@ import pandas as pd
 from datetime import datetime
 import matplotlib.pyplot as plt
 
+
+
+ALL_COLS = ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category_3"]
+CAT_COLS = ['education_category_3', 'sex']
+
 def master():
     pass
 
-def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = None, cat_cols = ['education_category_3', "sex"]):
+def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = None, cat_cols = CAT_COLS):
     data_df = pd.DataFrame()
 
 
@@ -41,13 +47,20 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = N
         return e
 
     # merge rows from same patients (but different visits)
+
     merge_cols = all_cols.copy()
     merge_cols.remove("id")
     data_df = data_df.groupby(["id"]).agg({col : 'first' for col in merge_cols}).reset_index()
 
     data = data_df[all_cols].dropna()
     info("dataframe built")
-
+    if "education_category_3" in data_cols:
+        enc = OneHotEncoder(categories = [[1, 2, 3]], sparse=False)
+        mapped_names = ["ec_1", "ec_2", "ec_3"]
+        mapped_arr = enc.fit_transform(data['education_category_3'].values.reshape(-1, 1))
+        data[mapped_names] = mapped_arr
+        data_cols.extend(mapped_names)
+        data_cols.remove("education_category_3")
 
     if ("Lag_time" in extra_cols) or ("Age" in extra_cols):
         #calculate age at blood draw and mri scan
@@ -69,41 +82,25 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = N
         data = data.loc[abs(data["Lag_time"]) <= 2]
 
     if normalize:
-
-        #inter_list = [cat_col for cat_col in cat_cols if cat_col in data_cols]
-        #info(str(inter_list))
         norm_cols = [col for col in data_cols if col not in cat_cols]
-        #norm_cols = data_cols.remove([cat_col for cat_col in cat_cols if cat_col in data_cols])
-        info(str(norm_cols))
-        #data_norm = data[norm_cols]
-        info(str(data['Age'].std()))
         data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
-        info(str(data["brain_age"].values))
-        info(str(data['Age'].values))
-        info(str(data['Lag_time'].values))
         #info(str(data['education_category_3'].values))
 
-    return data
+    return data, data_cols
 
 
-def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = [None], cat_cols = [None], bin_width = 2, normalize = True):
+def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = ALL_COLS, cat_cols = CAT_COLS, bin_width = 2, normalize = True):
 
 
     info("starting fit_round")
     #TODO: calc metaboage/health through PHT
     
-
-    # in case we want to use different columns later on, no need to change image this way
-    if None in all_cols:
-        all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category_3"]
-    
-    if None in cat_cols:
-        cat_cols = ['education_category_3', 'sex']
-
-    data = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize)
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize)
     
     X = data[data_cols].values.astype(float)
     
+
+
     if "mh" in extra_cols:
         y = data['metabo_health'].values.reshape(-1, 1,).astype(float)
     else:
@@ -190,7 +187,7 @@ def RPC_get_avg(db_client, PG_URI = None, col_name = "brain_age"):
 
 
     cols = ['id', col_name]
-    data = construct_data(cols, cols, cols, PG_URI = PG_URI)
+    data, data_cols = construct_data(cols, cols, cols, PG_URI = PG_URI)
     values = data[col_name].values.astype(float)
     
     return{
@@ -199,14 +196,10 @@ def RPC_get_avg(db_client, PG_URI = None, col_name = "brain_age"):
     }
     
 
-def RPC_calc_se(db_client, global_mean, global_coefs, global_inter, data_cols, extra_cols, all_cols = [None], PG_URI = None):
+def RPC_calc_se(db_client, global_mean, global_coefs, global_inter, data_cols, extra_cols, all_cols = ALL_COLS, PG_URI = None):
 
 
-    if None in all_cols:
-        all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category"]
-    
-
-    data = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI)
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI)
     ba = data["brain_age"].values.astype(float)
 
     X = data[data_cols].values.astype(float)

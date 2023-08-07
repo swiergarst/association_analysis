@@ -5,13 +5,18 @@ from io import BytesIO
 
 # we might want to try different initializations later on
 def init_global_params(data_cols, extra_cols, param_seed = 42):
+    data_len = len(data_cols)
     if None in extra_cols:
         extra_len = 0
     elif "Sens_1" in extra_cols or "Sens_2" in extra_cols:
         extra_len = len(extra_cols) - 1
     else:
         extra_len = len(extra_cols)
-    model_len = len(data_cols) + extra_len
+    
+    # we one-hot encode this into three columns
+    if "education_category_3" in data_cols:
+        data_len += 2
+    model_len = data_len + extra_len
     s = np.random.default_rng(seed=param_seed)
     return s.normal(0, 1, model_len), [s.normal(0,1)]
     #return np.random.normal(0, 1, model_len), [np.random.normal(0, 1)]
