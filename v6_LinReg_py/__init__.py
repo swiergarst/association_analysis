@@ -109,7 +109,7 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     # create a test train split based on seeded rng
     rng = np.random.default_rng(seed = seed)
     train_inds = rng.choice(len(X), math.floor(len(X)* 0.8), replace=False)
-    info(str(train_inds))
+    #info(str(train_inds))
     train_inds = np.sort(train_inds)
     train_mask = np.zeros((len(X)), dtype=bool)
     train_mask[train_inds] = True
