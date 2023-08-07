@@ -109,6 +109,7 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     # create a test train split based on seeded rng
     rng = np.random.default_rng(seed = seed)
     train_inds = rng.choice(len(X), math.floor(len(X)* 0.8), replace=False)
+    info(str(train_inds))
     train_inds = np.sort(train_inds)
     train_mask = np.zeros((len(X)), dtype=bool)
     train_mask[train_inds] = True
@@ -127,7 +128,8 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     model.partial_fit(X_train, y_train[:,0])
 
     info("model fitted")
-    global_loss = np.mean((global_pred - y_test) **2)
+    global_mse = np.mean((global_pred - y_test) **2)
+    global_mae = np.mean(abs(global_pred - y_test))
     loss = np.mean((model.predict(X_test) - y_test) **2)
 
     info("binning residual")
@@ -173,7 +175,8 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     return {
         "param": (model.coef_, model.intercept_),
         "data_cols" : data_cols,
-        "loss": global_loss,
+        "mse": global_mse,
+        "mae" :global_mae,
         "size": y_train.shape[0],
         "resplot": {
             "fig" : fig,

@@ -49,7 +49,8 @@ image_name = "sgarst/association-analysis:1.4.2"
 ## init data structures ## 
 
 betas = np.zeros((n_runs, n_rounds, n_clients))
-losses = np.zeros_like(betas)
+mses = np.zeros_like(betas)
+maes = np.zeros_like(betas)
 data_cols, extra_cols = define_model(model, use_dm = use_dm)
 
 for run in range(n_runs):
@@ -87,7 +88,8 @@ for run in range(n_runs):
         local_coefs = np.empty((len(global_coefs), n_clients))
         local_intercepts = np.empty((len(global_intercepts),n_clients))
         local_cols = np.empty((n_clients), dtype = object)
-        results = get_results(client, task, print_log = False)
+
+        results = get_results(client, task, print_log = True)
 
         if psycopg2.Error in results:
             print("query error: ", results)
@@ -96,7 +98,8 @@ for run in range(n_runs):
             for i in range(n_clients):
                 local_coefs[:,i], local_intercepts[:, i] = results[i]['param']
                 dataset_sizes[i] = results[i]['size']
-                losses[run, round, i] = results[i]['loss']
+                mses[run, round, i] = results[i]['mse']
+                maes[run, round, i] = results[i]["mae"]
                 local_cols[i] = results[i]["data_cols"]
                 #print(local_cols[i])
         #print(local_coefs, local_intercepts)
@@ -160,6 +163,7 @@ for run in range(n_runs):
 branges = [result['resplot']['ranges'].tolist() for result in results]
 
 print("finished! writing to file")
+print(mses)
 # write output to json file
 final_results = {
     "lr" : lr,
@@ -169,7 +173,8 @@ final_results = {
     "betas" : global_coefs.tolist(),
     "cols" : local_cols[0],
     "intercept" : global_intercepts.tolist(),
-    "loss" : losses.tolist(),
+    "mse" : mses.tolist(),
+    "mae" : maes.tolist(),
     "bin_ranges" : branges,
     "standard_error" : se
 }
