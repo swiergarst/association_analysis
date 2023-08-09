@@ -36,7 +36,7 @@ ids = [2,3]
 n_runs = 1 # amount of runs 
 n_rounds = 2 # communication rounds between centers
 lr = 0.000005 # learning rate
-model = "M3" # model selection (see analysis plan)
+model = "M4" # model selection (see analysis plan)
 n_bins = 10
 write_file = True
 use_dm = False
@@ -45,7 +45,7 @@ seed_offset = 0
 
 #all_cols =  ["id", "metabo_age", "brain_age","date_metabolomics", "date_mri","birth_year", "sex", "bmi", "dm", "education_category_3" ]
 #all_cols = [None]
-image_name = "sgarst/association-analysis:1.5.1"
+image_name = "sgarst/association-analysis:1.5.2"
 ## init data structures ## 
 
 betas = np.zeros((n_runs, n_rounds, n_clients))

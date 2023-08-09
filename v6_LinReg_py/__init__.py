@@ -53,14 +53,7 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = N
     data_df = data_df.groupby(["id"]).agg({col : 'first' for col in merge_cols}).reset_index()
 
     data = data_df[all_cols].dropna()
-    info("dataframe built")
-    if "education_category_3" in data_cols:
-        enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
-        mapped_names = ["ec_1", "ec_2", "ec_3"]
-        mapped_arr = enc.fit_transform(data['education_category_3'].values.reshape(-1, 1))
-        data[mapped_names] = mapped_arr
-        data_cols.extend(mapped_names)
-        data_cols.remove("education_category_3")
+    info("base dataframe built. adding columns based on covariates..")
 
     if ("Lag_time" in extra_cols) or ("Age" in extra_cols):
         #calculate age at blood draw and mri scan
@@ -77,14 +70,28 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = N
             data_cols.append("Age")
 
     if "Sens_1" in extra_cols:
-        data = data.loc[abs(data['Lag_time']) <= 1]
-    if "Sens_2" in extra_cols:
-        data = data.loc[abs(data["Lag_time"]) <= 2]
+        data = data.loc[abs(data['Lag_time']) <= 1].reset_index(drop=True)
+    elif "Sens_2" in extra_cols:
+        data = data.loc[abs(data["Lag_time"]) <= 2].reset_index(drop=True)
 
     if normalize:
         norm_cols = [col for col in data_cols if col not in cat_cols]
-        data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
-        #info(str(data['education_category_3'].values))
+        norm_cols.append('metabo_age')
+
+        tmp = data[norm_cols].astype(float) - data[norm_cols].astype(float).mean()
+        tmp2 = tmp / data[norm_cols].astype(float).std()
+        data[norm_cols] = tmp2.values
+        #data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
+        info("normalizing done")
+
+    if "education_category_3" in data_cols:
+        enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
+        mapped_names = ["ec_1", "ec_2", "ec_3"]
+        mapped_arr = enc.fit_transform(data['education_category_3'].values.reshape(-1, 1))
+        data[mapped_names] = mapped_arr
+        data_cols.extend(mapped_names)
+        data_cols.remove("education_category_3")
+
 
     return data, data_cols
 
@@ -98,7 +105,7 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize)
     
     X = data[data_cols].values.astype(float)
-    
+    info(str(X.shape))
 
 
     if "mh" in extra_cols:
