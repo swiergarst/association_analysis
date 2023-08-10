@@ -105,7 +105,7 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize)
     
     X = data[data_cols].values.astype(float)
-    info(str(X.shape))
+
 
 
     if "mh" in extra_cols:
@@ -196,7 +196,7 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
 def RPC_get_avg(db_client, PG_URI = None, col_name = "brain_age"):
 
 
-    cols = ['id', col_name]
+    cols = ['id', 'metabo_age', col_name]
     data, data_cols = construct_data(cols, cols, cols, PG_URI = PG_URI)
     values = data[col_name].values.astype(float)
     

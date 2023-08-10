@@ -45,7 +45,7 @@ seed_offset = 0
 
 #all_cols =  ["id", "metabo_age", "brain_age","date_metabolomics", "date_mri","birth_year", "sex", "bmi", "dm", "education_category_3" ]
 #all_cols = [None]
-image_name = "sgarst/association-analysis:1.5.2"
+image_name = "sgarst/association-analysis:1.5.3"
 ## init data structures ## 
 
 betas = np.zeros((n_runs, n_rounds, n_clients))
