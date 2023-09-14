@@ -5,7 +5,7 @@ import json
 from io import BytesIO
 import datetime
 import psycopg2
-from utils import init_global_params, average, define_model, get_results
+from association_analysis.utils import init_global_params, average, define_model, get_results
 import time
 import matplotlib.pyplot as plt
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -13,13 +13,13 @@ import pickle
 from tqdm import tqdm
 
 print("Attempt login to Vantage6 API")
-# client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
-# client.authenticate("sgarst", "password")
-# client.setup_encryption(None)
-
-client = Client("http://localhost", 5000, "/api")
+client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
 client.authenticate("researcher", "password")
 client.setup_encryption(None)
+
+#client = Client("http://localhost", 5000, "/api")
+#client.authenticate("researcher", "password")
+#client.setup_encryption(None)
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
 #ID mapping:
@@ -29,21 +29,22 @@ ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
 
 #ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
-ids = [2,3]
-
+#ids = [2,3]
+#ids = [2]
 ## Parameter settings ##
 
 n_runs = 1 # amount of runs 
-n_rounds = 2 # communication rounds between centers
-lr = 0.000005 # learning rate
-model = "M4" # model selection (see analysis plan)
-n_bins = 10
+n_rounds = 4 # communication rounds between centers
+lr = 0.0005 # learning rate
+model = "M3" # model selection (see analysis plan)
+bin_width = 0.2
 write_file = True
-use_dm = False
+use_dm = True
+use_age = False
 n_clients = len(ids)
 seed_offset = 0
 
-#all_cols =  ["id", "metabo_age", "brain_age","date_metabolomics", "date_mri","birth_year", "sex", "bmi", "dm", "education_category_3" ]
+all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri","birth_year", "sex",  "dm", "education_category_3", "bmi"]
 #all_cols = [None]
 image_name = "sgarst/association-analysis:1.5.3"
 ## init data structures ## 
@@ -51,7 +52,7 @@ image_name = "sgarst/association-analysis:1.5.3"
 betas = np.zeros((n_runs, n_rounds, n_clients))
 mses = np.zeros_like(betas)
 maes = np.zeros_like(betas)
-data_cols, extra_cols = define_model(model, use_dm = use_dm)
+data_cols, extra_cols = define_model(model, use_dm = use_dm, use_age = use_age)
 
 for run in range(n_runs):
 
@@ -71,8 +72,9 @@ for run in range(n_runs):
                     "intercepts" :  global_intercepts,
                     "data_cols" : data_cols,
                     "extra_cols" : extra_cols,
-                    #"all_cols": all_cols,
+                    "all_cols": all_cols,
                     "lr" : lr,
+                    "bin_width" : bin_width,
                     "seed": tt_split_seed,
                     }
                 },
@@ -89,7 +91,7 @@ for run in range(n_runs):
         local_intercepts = np.empty((len(global_intercepts),n_clients))
         local_cols = np.empty((n_clients), dtype = object)
 
-        results = get_results(client, task, print_log = True)
+        results = get_results(client, task, print_log = False)
 
         if psycopg2.Error in results:
             print("query error: ", results)
@@ -113,7 +115,9 @@ for run in range(n_runs):
     avg_task = client.post_task(
         input_= {
             "method" : "get_avg",
-            "kwargs" : {     }
+            "kwargs" : {
+               # "col_name" :  ['metabo_age', 'brain_age']
+            }
         },
         name= "get average",
         image = image_name,
@@ -137,7 +141,7 @@ for run in range(n_runs):
                 "global_coefs" : global_coefs,
                 "global_inter" : global_intercepts,
                 "data_cols" : data_cols,
-                #"all_cols" : all_cols,
+                "all_cols" : all_cols,
                 "extra_cols" : extra_cols,
             }
         },
@@ -163,7 +167,7 @@ for run in range(n_runs):
 branges = [result['resplot']['ranges'].tolist() for result in results]
 
 print("finished! writing to file")
-print(mses)
+print(maes)
 # write output to json file
 final_results = {
     "lr" : lr,
@@ -176,12 +180,14 @@ final_results = {
     "mse" : mses.tolist(),
     "mae" : maes.tolist(),
     "bin_ranges" : branges,
-    "standard_error" : se
+    "standard_error" : se,
+    "sizes" : sizes
 }
 
+print(branges)
 if write_file:
     date = datetime.datetime.now()
-    file_str = f'analysis_model_{model}_centers_{ids}_{date.strftime("%d")}_{date.strftime("%m")}_{date.strftime("%Y")}'
+    file_str = f'analysis_model_{model}_centers_{ids}_age_{use_age}_dm_{use_dm}_{date.strftime("%d")}_{date.strftime("%m")}_{date.strftime("%Y")}'
     jo = json.dumps(final_results)
 
     with open(file_str + ".json", "w", encoding="utf8") as f:

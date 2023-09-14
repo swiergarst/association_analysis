@@ -41,7 +41,7 @@ def average(params, sizes):
 
     return parameters
 
-def define_model(model, use_dm = True):
+def define_model(model, use_dm = True, use_age = True):
     if (model == "M1"):
         data_cols = ['brain_age']
         extra_cols = [None]
@@ -68,6 +68,8 @@ def define_model(model, use_dm = True):
 
     if (use_dm == False) and (model != "M1") :
         data_cols.remove("dm")
+    if (use_age == False) and (model != "M1"):
+        extra_cols.remove("Age")
     #print(data_cols)
     return data_cols, extra_cols
 
