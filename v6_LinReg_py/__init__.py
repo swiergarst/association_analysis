@@ -79,22 +79,26 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = N
         data['metabo_age'] = data['metabo_age'] - data['Age']
         data['brain_age'] = data['brain_age'] - data['Age']
 
-    if normalize == "local":
+    if normalize != "none":
         norm_cols = [col for col in data_cols if col not in cat_cols]
         norm_cols.append('metabo_age')
 
-        tmp = data[norm_cols].astype(float) - data[norm_cols].astype(float).mean()
-        tmp2 = tmp / data[norm_cols].astype(float).std()
-        data[norm_cols] = tmp2.values
-        #data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
-        info("normalizing done")
-    elif normalize == "global":
-        norm_cols = [col for col in data_cols if col not in cat_cols]
-        norm_cols.append('metabo_age')
+        if normalize == "local":
+            mean = data[norm_cols].astype(float).mean()
+            std = data[norm_cols].astype(float).std()
+            
+            #data[norm_cols] = tmp2.values
+            #data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
+            #info("normalizing done")
+        elif normalize == "global":
+            mean = global_mean
+            std = global_std
 
-        tmp = data[norm_cols].astype(float) - global_mean
-        tmp2 = tmp / global_std
-        data[norm_cols] = tmp2.values
+        if 0 in std:
+            info("removing 0's from std")
+            std[std==0] = 1
+
+        data[norm_cols] = (data[norm_cols].astype(float) - mean) / global_std
         #data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
         info("normalizing done")  
 
@@ -207,6 +211,10 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
             "ranges" : bin_start
         }
     }
+
+# REMOVE THIS FUNCTION AFTER TESTING FOR GLOBAL NORMALIZATION
+def RPC_get_data():
+    pass
     
 def RPC_get_avg(db_client, data_cols, extra_cols, all_cols = ALL_COLS, PG_URI = None, use_deltas = False):
 
