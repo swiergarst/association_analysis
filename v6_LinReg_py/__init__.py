@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 
 ALL_COLS = ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category_3"]
-CAT_COLS = ['education_category_3', 'sex']
+CAT_COLS = ['education_category_3', 'sex', "dm"]
 
 def master():
     pass
