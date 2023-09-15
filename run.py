@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 dir_path = os.path.dirname(os.path.realpath(__file__))
 import pickle
 from tqdm import tqdm
+import pandas as pd
 
 print("Attempt login to Vantage6 API")
 # client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
@@ -78,7 +79,7 @@ for run in range(n_runs):
         organization_ids= ids,
         collaboration_id=1
     )
-    avg_results = get_results(client, avg_task, print_log=True)
+    avg_results = get_results(client, avg_task, print_log=False)
 
     means = np.array([result['mean'] for result in avg_results])
     sizes = np.array([result['size'] for result in avg_results])
@@ -101,12 +102,43 @@ for run in range(n_runs):
             organization_ids=ids,
             collaboration_id=1
         )
-        std_results = get_results(client, std_task, print_log=True)
+        std_results = get_results(client, std_task, print_log=False)
         stds = np.array([result['std_part'] for result in std_results])
         global_std = np.sum(stds)/ np.sum(sizes)
     else:
         global_std = None
 
+
+    data_task = client.post_task(
+        input_= {
+            "method" : "get_data",
+            "kwargs" : {
+                "data_cols" : data_cols,
+                "extra_cols" : extra_cols,
+                "use_deltas" : use_deltas
+            }
+        },
+        name = "get data",
+        image = image_name,
+        organization_ids=ids,
+        collaboration_id=1
+    )
+
+    data_results = get_results(client, data_task, print_log = True)
+    full_data = pd.concat(data_results[0]['data'], data_results[1]['data'])
+
+    central_global_mean = full_data.mean()
+    central_global_std = full_data.std()
+
+    print(f'global mean centralized: {central_global_mean}, federated: {global_mean}')
+    print(f'global std centralized: {central_global_std}, federated: {global_std}')
+
+
+
+
+
+
+    exit()
     for round in tqdm(range(n_rounds)):
         #print(global_coefs, global_intercepts)
         #print("posting fit_round task to ids " + str(ids))

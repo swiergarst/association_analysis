@@ -215,8 +215,11 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     }
 
 # REMOVE THIS FUNCTION AFTER TESTING FOR GLOBAL NORMALIZATION
-def RPC_get_data():
-    pass
+def RPC_get_data(db_client, data_cols, extra_cols, all_cols = ALL_COLS, normalize = "none", use_deltas = False):
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = None, normalize = normalize, use_deltas=use_deltas)
+    return {
+        "data" : data
+    }
     
 def RPC_get_avg(db_client, data_cols, extra_cols, all_cols = ALL_COLS, PG_URI = None, use_deltas = False):
 
