@@ -5,21 +5,22 @@ import json
 from io import BytesIO
 import datetime
 import psycopg2
-from association_analysis.utils import init_global_params, average, define_model, get_results
+from utils import init_global_params, average, define_model, get_results
 import time
 import matplotlib.pyplot as plt
 dir_path = os.path.dirname(os.path.realpath(__file__))
 import pickle
 from tqdm import tqdm
+import pandas as pd
 
 print("Attempt login to Vantage6 API")
-client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
+# client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
+# client.authenticate("researcher", "password")
+# client.setup_encryption(None)
+
+client = Client("http://localhost", 5000, "/api")
 client.authenticate("researcher", "password")
 client.setup_encryption(None)
-
-#client = Client("http://localhost", 5000, "/api")
-#client.authenticate("researcher", "password")
-#client.setup_encryption(None)
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
 #ID mapping:
@@ -36,17 +37,19 @@ ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 n_runs = 1 # amount of runs 
 n_rounds = 4 # communication rounds between centers
 lr = 0.0005 # learning rate
-model = "M3" # model selection (see analysis plan)
+model = "M4" # model selection (see analysis plan)
 bin_width = 0.2
-write_file = True
+write_file = False
 use_dm = True
-use_age = False
+use_age = True
+use_deltas = False #whether to look at delta metabo/brainage
+normalize = "global" # options: local, global, none
 n_clients = len(ids)
 seed_offset = 0
 
 all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri","birth_year", "sex",  "dm", "education_category_3", "bmi"]
 #all_cols = [None]
-image_name = "sgarst/association-analysis:1.5.3"
+image_name = "sgarst/association-analysis:normTest"
 ## init data structures ## 
 
 betas = np.zeros((n_runs, n_rounds, n_clients))
@@ -61,6 +64,86 @@ for run in range(n_runs):
     # federated iterative process
     global_coefs, global_intercepts = init_global_params(data_cols, extra_cols, param_seed = param_seed)
     
+    avg_task = client.post_task(
+        input_= {
+            "method" : "get_avg",
+            "kwargs" : {
+                "data_cols" : data_cols,
+                "extra_cols" : extra_cols,
+                "use_deltas" : use_deltas
+               # "col_name" :  ['metabo_age', 'brain_age']
+            }
+        },
+        name= "get average",
+        image = image_name,
+        organization_ids= ids,
+        collaboration_id=1
+    )
+    avg_results = get_results(client, avg_task, print_log=True)
+
+    means = np.array([result['mean'] for result in avg_results])
+    sizes = np.array([result['size'] for result in avg_results])
+
+    global_mean = np.sum([(mean * size) for mean, size in zip(means, sizes)], axis = 0) / np.sum(sizes)
+
+    if normalize == "global":
+        std_task = client.post_task(
+            input_ = {
+                "method" : "get_std",
+                "kwargs" : {
+                    "global_mean" : global_mean,
+                    "data_cols" : data_cols,
+                    "extra_cols" : extra_cols,
+                    "use_deltas" : use_deltas
+                }
+            },
+            name = "get std",
+            image = image_name,
+            organization_ids=ids,
+            collaboration_id=1
+        )
+        std_results = get_results(client, std_task, print_log=True)
+        stds = np.array([result['std_part'] for result in std_results])
+        print(std_results[0]['cols'])
+        global_std = np.sqrt(np.sum(stds, axis = 0)/ np.sum(sizes))
+    else:
+        global_std = None
+
+
+    data_task = client.post_task(
+        input_= {
+            "method" : "get_data",
+            "kwargs" : {
+                "data_cols" : data_cols,
+                "extra_cols" : extra_cols,
+                "use_deltas" : use_deltas
+            }
+        },
+        name = "get data",
+        image = image_name,
+        organization_ids=ids,
+        collaboration_id=1
+    )
+
+    data_results = get_results(client, data_task, print_log = False)
+    full_data = pd.concat((data_results[0]['data'], data_results[1]['data']))
+
+
+    central_global_mean = full_data.mean()
+
+    central_global_std = full_data.std(ddof=0)
+
+    central_manual_std = np.sqrt((np.sum(np.square(data_results[0]['data'].values.astype(float) - global_mean), axis = 0) + np.sum(np.square(data_results[1]['data'].values.astype(float) - global_mean), axis = 0)) / np.sum(sizes))
+    
+    #central_manual_std2 = np.sqnp.sum(np.square(full_data.values.astype(float) - global_mean), axis = 0)/np.sum(sizes)
+    print(f'global mean centralized: {central_global_mean}, federated: {global_mean}')
+    print(f'global std centralized: {central_global_std}, federated: {global_std}, manual: {central_manual_std}')
+
+
+
+
+
+    exit()
     for round in tqdm(range(n_rounds)):
         #print(global_coefs, global_intercepts)
         #print("posting fit_round task to ids " + str(ids))
@@ -76,6 +159,10 @@ for run in range(n_runs):
                     "lr" : lr,
                     "bin_width" : bin_width,
                     "seed": tt_split_seed,
+                    "normalize" : normalize,
+                    "global_mean" : global_mean,
+                    "global_std" : global_std,
+                    "use_deltas" : use_deltas
                     }
                 },
             name = "Analysis fit regressor, round" + str(round),
@@ -91,7 +178,7 @@ for run in range(n_runs):
         local_intercepts = np.empty((len(global_intercepts),n_clients))
         local_cols = np.empty((n_clients), dtype = object)
 
-        results = get_results(client, task, print_log = False)
+        results = get_results(client, task, print_log = True)
 
         if psycopg2.Error in results:
             print("query error: ", results)
@@ -112,24 +199,6 @@ for run in range(n_runs):
 #print(losses)
 
     print('finished model fitting, calculating standard error..')
-    avg_task = client.post_task(
-        input_= {
-            "method" : "get_avg",
-            "kwargs" : {
-               # "col_name" :  ['metabo_age', 'brain_age']
-            }
-        },
-        name= "get average",
-        image = image_name,
-        organization_ids= ids,
-        collaboration_id=1
-    )
-    avg_results = get_results(client, avg_task, print_log=False)
-
-    means = np.array([result['mean'] for result in avg_results])
-    sizes = np.array([result['size'] for result in avg_results])
-
-    global_mean = np.sum([(mean * size) for mean, size in zip(means, sizes)]) / np.sum(sizes)
 
     #print(means, global_mean)
 

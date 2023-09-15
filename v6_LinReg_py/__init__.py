@@ -12,12 +12,12 @@ import matplotlib.pyplot as plt
 
 
 ALL_COLS = ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category_3"]
-CAT_COLS = ['education_category_3', 'sex']
+CAT_COLS = ['education_category_3', 'sex', "dm"]
 
 def master():
     pass
 
-def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = None, cat_cols = CAT_COLS):
+def construct_data(all_cols, data_cols, extra_cols, normalize = 'none', PG_URI = None, cat_cols = CAT_COLS, global_mean = 0, global_std = 1, use_deltas = False):
     data_df = pd.DataFrame()
 
 
@@ -55,7 +55,7 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = N
     data = data_df[all_cols].dropna()
     info("base dataframe built. adding columns based on covariates..")
 
-    if ("Lag_time" in extra_cols) or ("Age" in extra_cols):
+    if ("Lag_time" in extra_cols) or ("Age" in extra_cols) or (use_deltas == True):
         #calculate age at blood draw and mri scan
         blood_dates = np.array([date.strftime("%Y") for date in data["date_metabolomics"].values]).astype(int)
         mri_dates = np.array([date.strftime("%Y") for date in data["date_mri"].values]).astype(int)
@@ -65,7 +65,7 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = N
         if "Lag_time" in extra_cols:
             data["Lag_time"] = Age_met - Age_brain
             data_cols.append("Lag_time")
-        if "Age" in extra_cols:
+        if ("Age" in extra_cols) or (use_deltas == True):
             data["Age"] = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
             data_cols.append("Age")
 
@@ -74,15 +74,35 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = N
     elif "Sens_2" in extra_cols:
         data = data.loc[abs(data["Lag_time"]) <= 2].reset_index(drop=True)
 
-    if normalize:
+
+    if use_deltas:
+        data['metabo_age'] = data['metabo_age'].values.astype(float) - data['Age'].values.astype(float)
+        data['brain_age'] = data['brain_age'].values.astype(float) - data['Age'].values.astype(float)
+
+    if normalize != "none":
+
         norm_cols = [col for col in data_cols if col not in cat_cols]
         norm_cols.append('metabo_age')
+        std = [None] # we need this to avoid issues with the if-statement later on
+        mean = None
+        if normalize == "local":
+            mean = data[norm_cols].astype(float).mean()
+            std = data[norm_cols].astype(float).std()
+            
+            #data[norm_cols] = tmp2.values
+            #data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
+            #info("normalizing done")
+        elif normalize == "global":
+            mean = global_mean
+            std = global_std
 
-        tmp = data[norm_cols].astype(float) - data[norm_cols].astype(float).mean()
-        tmp2 = tmp / data[norm_cols].astype(float).std()
-        data[norm_cols] = tmp2.values
+        if 0 in std:
+            info("removing 0's from std")
+            std[std==0] = 1
+
+        data[norm_cols] = (data[norm_cols].astype(float) - mean) / std
         #data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
-        info("normalizing done")
+        info("normalizing done")  
 
     if "education_category_3" in data_cols:
         enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
@@ -96,13 +116,14 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = N
     return data, data_cols
 
 
-def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = ALL_COLS, cat_cols = CAT_COLS, bin_width = 2, normalize = True):
+def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = ALL_COLS, cat_cols = CAT_COLS, bin_width = 2, normalize = 'none', global_mean = None, global_std = None, use_deltas = False):
 
 
     info("starting fit_round")
     #TODO: calc metaboage/health through PHT
+
     
-    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize)
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize, global_mean = global_mean, global_std = global_std, use_deltas = use_deltas)
     
     X = data[data_cols].values.astype(float)
 
@@ -192,17 +213,27 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
             "ranges" : bin_start
         }
     }
-    
-def RPC_get_avg(db_client, PG_URI = None, col_name = "brain_age"):
+   
+def RPC_get_avg(db_client, data_cols, extra_cols, all_cols = ALL_COLS, PG_URI = None, use_deltas = False):
 
 
-    cols = ['id', 'metabo_age', col_name]
-    data, data_cols = construct_data(cols, cols, cols, PG_URI = PG_URI)
-    values = data[col_name].values.astype(float)
-    
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, normalize = 'none', use_deltas=use_deltas)
+    values = data[data_cols].values.astype(float)
     return{
-        "mean" : np.mean(values),
+        "mean" : np.mean(values, axis = 0),
+        #"cols" : data_cols,
         "size" : values.shape[0]
+    }
+
+def RPC_get_std(db_client, global_mean, data_cols, extra_cols, PG_URI = None, all_cols = ALL_COLS, use_deltas = False):
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, normalize = 'none', use_deltas = use_deltas)
+    values = data[data_cols].values.astype(float)
+    #info(str(values.shape) + "," +  str(global_mean.shape))
+    std_part = np.sum(np.square(values - global_mean), axis = 0)
+
+    return {
+        "std_part" : std_part,
+        #"cols" :data_cols
     }
     
 
