@@ -17,7 +17,7 @@ CAT_COLS = ['education_category_3', 'sex']
 def master():
     pass
 
-def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = None, cat_cols = CAT_COLS, global_mean = 0, global_std = 1, use_deltas = False):
+def construct_data(all_cols, data_cols, extra_cols, normalize = 'none', PG_URI = None, cat_cols = CAT_COLS, global_mean = 0, global_std = 1, use_deltas = False):
     data_df = pd.DataFrame()
 
 
@@ -80,9 +80,11 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = N
         data['brain_age'] = data['brain_age'] - data['Age']
 
     if normalize != "none":
+
         norm_cols = [col for col in data_cols if col not in cat_cols]
         norm_cols.append('metabo_age')
-
+        std = [None] # we need this to avoid issues with the if-statement later on
+        mean = None
         if normalize == "local":
             mean = data[norm_cols].astype(float).mean()
             std = data[norm_cols].astype(float).std()
@@ -98,7 +100,7 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = True, PG_URI = N
             info("removing 0's from std")
             std[std==0] = 1
 
-        data[norm_cols] = (data[norm_cols].astype(float) - mean) / global_std
+        data[norm_cols] = (data[norm_cols].astype(float) - mean) / std
         #data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
         info("normalizing done")  
 
@@ -219,7 +221,7 @@ def RPC_get_data():
 def RPC_get_avg(db_client, data_cols, extra_cols, all_cols = ALL_COLS, PG_URI = None, use_deltas = False):
 
 
-    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, normalize = False, use_deltas=use_deltas)
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, normalize = 'none', use_deltas=use_deltas)
     values = data[data_cols].values.astype(float)
     info(str(values.shape))
     info(str(np.mean(values, axis = 0).shape))
@@ -230,7 +232,7 @@ def RPC_get_avg(db_client, data_cols, extra_cols, all_cols = ALL_COLS, PG_URI = 
     }
 
 def RPC_get_std(db_client, global_mean, data_cols, extra_cols, PG_URI = None, all_cols = ALL_COLS, use_deltas = False):
-    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, normalize = False, use_deltas = use_deltas)
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, normalize = 'none', use_deltas = use_deltas)
     values = data[data_cols].values.astype(float)
     std_part = np.sum(np.square(values - global_mean))
 
