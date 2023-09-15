@@ -37,19 +37,19 @@ ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 n_runs = 1 # amount of runs 
 n_rounds = 4 # communication rounds between centers
 lr = 0.0005 # learning rate
-model = "M3" # model selection (see analysis plan)
+model = "M4" # model selection (see analysis plan)
 bin_width = 0.2
-write_file = True
+write_file = False
 use_dm = True
-use_age = False
-use_deltas = False #whether to look at delta metabo/brainage
+use_age = True
+use_deltas = True #whether to look at delta metabo/brainage
 normalize = "global" # options: local, global, none
 n_clients = len(ids)
 seed_offset = 0
 
 all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri","birth_year", "sex",  "dm", "education_category_3", "bmi"]
 #all_cols = [None]
-image_name = "sgarst/association-analysis:1.5.5"
+image_name = "sgarst/association-analysis:normTest"
 ## init data structures ## 
 
 betas = np.zeros((n_runs, n_rounds, n_clients))
@@ -79,12 +79,12 @@ for run in range(n_runs):
         organization_ids= ids,
         collaboration_id=1
     )
-    avg_results = get_results(client, avg_task, print_log=False)
+    avg_results = get_results(client, avg_task, print_log=True)
 
     means = np.array([result['mean'] for result in avg_results])
     sizes = np.array([result['size'] for result in avg_results])
 
-    global_mean = np.sum([(mean * size) for mean, size in zip(means, sizes)]) / np.sum(sizes)
+    global_mean = np.sum([(mean * size) for mean, size in zip(means, sizes)], axis = 0) / np.sum(sizes)
 
     if normalize == "global":
         std_task = client.post_task(
@@ -102,9 +102,10 @@ for run in range(n_runs):
             organization_ids=ids,
             collaboration_id=1
         )
-        std_results = get_results(client, std_task, print_log=False)
+        std_results = get_results(client, std_task, print_log=True)
         stds = np.array([result['std_part'] for result in std_results])
-        global_std = np.sum(stds)/ np.sum(sizes)
+        print(std_results[0]['cols'])
+        global_std = np.sqrt(np.sum(stds, axis = 0)/ np.sum(sizes))
     else:
         global_std = None
 
@@ -124,15 +125,19 @@ for run in range(n_runs):
         collaboration_id=1
     )
 
-    data_results = get_results(client, data_task, print_log = True)
-    full_data = pd.concat(data_results[0]['data'], data_results[1]['data'])
+    data_results = get_results(client, data_task, print_log = False)
+    full_data = pd.concat((data_results[0]['data'], data_results[1]['data']))
+
 
     central_global_mean = full_data.mean()
-    central_global_std = full_data.std()
 
+    central_global_std = full_data.std(ddof=0)
+
+    central_manual_std = np.sqrt((np.sum(np.square(data_results[0]['data'].values.astype(float) - global_mean), axis = 0) + np.sum(np.square(data_results[1]['data'].values.astype(float) - global_mean), axis = 0)) / np.sum(sizes))
+    
+    #central_manual_std2 = np.sqnp.sum(np.square(full_data.values.astype(float) - global_mean), axis = 0)/np.sum(sizes)
     print(f'global mean centralized: {central_global_mean}, federated: {global_mean}')
-    print(f'global std centralized: {central_global_std}, federated: {global_std}')
-
+    print(f'global std centralized: {central_global_std}, federated: {global_std}, manual: {central_manual_std}')
 
 
 

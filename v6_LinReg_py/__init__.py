@@ -76,8 +76,8 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = 'none', PG_URI =
 
 
     if use_deltas:
-        data['metabo_age'] = data['metabo_age'] - data['Age']
-        data['brain_age'] = data['brain_age'] - data['Age']
+        data['metabo_age'] = data['metabo_age'].values.astype(float) - data['Age'].values.astype(float)
+        data['brain_age'] = data['brain_age'].values.astype(float) - data['Age'].values.astype(float)
 
     if normalize != "none":
 
@@ -218,7 +218,8 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
 def RPC_get_data(db_client, data_cols, extra_cols, all_cols = ALL_COLS, normalize = "none", use_deltas = False):
     data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = None, normalize = normalize, use_deltas=use_deltas)
     return {
-        "data" : data
+        "data" : data[data_cols],
+        "cols" : data_cols
     }
     
 def RPC_get_avg(db_client, data_cols, extra_cols, all_cols = ALL_COLS, PG_URI = None, use_deltas = False):
@@ -226,8 +227,6 @@ def RPC_get_avg(db_client, data_cols, extra_cols, all_cols = ALL_COLS, PG_URI = 
 
     data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, normalize = 'none', use_deltas=use_deltas)
     values = data[data_cols].values.astype(float)
-    info(str(values.shape))
-    info(str(np.mean(values, axis = 0).shape))
     return{
         "mean" : np.mean(values, axis = 0),
         "cols" : data_cols,
@@ -237,10 +236,12 @@ def RPC_get_avg(db_client, data_cols, extra_cols, all_cols = ALL_COLS, PG_URI = 
 def RPC_get_std(db_client, global_mean, data_cols, extra_cols, PG_URI = None, all_cols = ALL_COLS, use_deltas = False):
     data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, normalize = 'none', use_deltas = use_deltas)
     values = data[data_cols].values.astype(float)
-    std_part = np.sum(np.square(values - global_mean))
+    info(str(values.shape) + "," +  str(global_mean.shape))
+    std_part = np.sum(np.square(values - global_mean), axis = 0)
 
     return {
-        "std_part" : std_part
+        "std_part" : std_part,
+        "cols" :data_cols
     }
     
 
