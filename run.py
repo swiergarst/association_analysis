@@ -37,7 +37,7 @@ ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 n_runs = 1 # amount of runs 
 n_rounds = 4 # communication rounds between centers
 lr = 0.0005 # learning rate
-model = "M4" # model selection (see analysis plan)
+model = "M3" # model selection (see analysis plan)
 bin_width = 0.2
 write_file = False
 use_dm = True
@@ -49,14 +49,16 @@ seed_offset = 0
 
 all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri","birth_year", "sex",  "dm", "education_category_3", "bmi"]
 #all_cols = [None]
-image_name = "sgarst/association-analysis:normTest"
+image_name = "sgarst/association-analysis:1.6.1"
 ## init data structures ## 
 
 betas = np.zeros((n_runs, n_rounds, n_clients))
 mses = np.zeros_like(betas)
 maes = np.zeros_like(betas)
-data_cols, extra_cols = define_model(model, use_dm = use_dm, use_age = use_age)
-
+data_cols, extra_cols, to_norm_cols = define_model(model, use_dm = use_dm, use_age = use_age)
+#data_cols_norm = data_cols.copy()
+#data_cols_norm.append("metabo_age")
+#print(data_cols_norm)
 for run in range(n_runs):
 
     param_seed = run + seed_offset
@@ -68,7 +70,10 @@ for run in range(n_runs):
         input_= {
             "method" : "get_avg",
             "kwargs" : {
-                "data_cols" : data_cols,
+                #"data_cols" : data_cols,
+                #"data_cols" : data_cols_norm,
+                #"data_cols" : ['brain_age', "metabo_age"],#, "bmi"],
+                "data_cols" : to_norm_cols,
                 "extra_cols" : extra_cols,
                 "use_deltas" : use_deltas
                # "col_name" :  ['metabo_age', 'brain_age']
@@ -83,7 +88,7 @@ for run in range(n_runs):
 
     means = np.array([result['mean'] for result in avg_results])
     sizes = np.array([result['size'] for result in avg_results])
-
+    print(means[0].shape)
     global_mean = np.sum([(mean * size) for mean, size in zip(means, sizes)], axis = 0) / np.sum(sizes)
 
     if normalize == "global":
@@ -92,7 +97,9 @@ for run in range(n_runs):
                 "method" : "get_std",
                 "kwargs" : {
                     "global_mean" : global_mean,
-                    "data_cols" : data_cols,
+                    #"data_cols" : data_cols,
+                    "data_cols" : to_norm_cols,
+                    #"data_cols" : ['brain_age', "metabo_age"],#, "bmi"],
                     "extra_cols" : extra_cols,
                     "use_deltas" : use_deltas
                 }
@@ -102,48 +109,22 @@ for run in range(n_runs):
             organization_ids=ids,
             collaboration_id=1
         )
-        std_results = get_results(client, std_task, print_log=True)
+        std_results = get_results(client, std_task, print_log=False)
         stds = np.array([result['std_part'] for result in std_results])
-        print(std_results[0]['cols'])
+        #print(std_results[0]['cols'])
         global_std = np.sqrt(np.sum(stds, axis = 0)/ np.sum(sizes))
     else:
         global_std = None
 
+    print(global_std.shape, global_mean.shape)
 
-    data_task = client.post_task(
-        input_= {
-            "method" : "get_data",
-            "kwargs" : {
-                "data_cols" : data_cols,
-                "extra_cols" : extra_cols,
-                "use_deltas" : use_deltas
-            }
-        },
-        name = "get data",
-        image = image_name,
-        organization_ids=ids,
-        collaboration_id=1
-    )
-
-    data_results = get_results(client, data_task, print_log = False)
-    full_data = pd.concat((data_results[0]['data'], data_results[1]['data']))
+    # we need to put metabo_age at the end of the means/stds, since that is where the other task expects it
+    print(f'global mean before swap: {global_mean}')
+    global_mean[[1, -1]] = global_mean[[-1, 1]]
+    global_std[[1, -1]] = global_std[[-1, 1]]
+    print(f'global mean after swap: {global_mean}')
 
 
-    central_global_mean = full_data.mean()
-
-    central_global_std = full_data.std(ddof=0)
-
-    central_manual_std = np.sqrt((np.sum(np.square(data_results[0]['data'].values.astype(float) - global_mean), axis = 0) + np.sum(np.square(data_results[1]['data'].values.astype(float) - global_mean), axis = 0)) / np.sum(sizes))
-    
-    #central_manual_std2 = np.sqnp.sum(np.square(full_data.values.astype(float) - global_mean), axis = 0)/np.sum(sizes)
-    print(f'global mean centralized: {central_global_mean}, federated: {global_mean}')
-    print(f'global std centralized: {central_global_std}, federated: {global_std}, manual: {central_manual_std}')
-
-
-
-
-
-    exit()
     for round in tqdm(range(n_rounds)):
         #print(global_coefs, global_intercepts)
         #print("posting fit_round task to ids " + str(ids))
@@ -206,7 +187,7 @@ for run in range(n_runs):
         input_ = {
             "method" : "calc_se",
             "kwargs" : {
-                "global_mean" : global_mean,
+                "global_mean" : global_mean[0],
                 "global_coefs" : global_coefs,
                 "global_inter" : global_intercepts,
                 "data_cols" : data_cols,

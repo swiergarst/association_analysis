@@ -100,6 +100,8 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = 'none', PG_URI =
             info("removing 0's from std")
             std[std==0] = 1
 
+        info(str(norm_cols))
+        info(str(mean.shape))
         data[norm_cols] = (data[norm_cols].astype(float) - mean) / std
         #data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
         info("normalizing done")  
@@ -219,6 +221,7 @@ def RPC_get_avg(db_client, data_cols, extra_cols, all_cols = ALL_COLS, PG_URI = 
 
     data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, normalize = 'none', use_deltas=use_deltas)
     values = data[data_cols].values.astype(float)
+    info(str(data_cols))
     return{
         "mean" : np.mean(values, axis = 0),
         #"cols" : data_cols,

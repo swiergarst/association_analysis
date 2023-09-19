@@ -45,15 +45,19 @@ def define_model(model, use_dm = True, use_age = True):
     if (model == "M1"):
         data_cols = ['brain_age']
         extra_cols = [None]
+        to_norm_cols = ['brain_age', 'metabo_age']
     elif (model == "M2"):
-        data_cols = ["sex", "brain_age", "dm"]
+        data_cols = ["brain_age", "sex", "dm"]
         extra_cols = ["Lag_time", "Age"]
+        to_norm_cols = ['brain_age', 'metabo_age']
     elif (model == "M3"):
         data_cols = ["brain_age", "sex", "dm", "bmi", "education_category_3"]
         extra_cols = ["Age", "Lag_time"]
+        to_norm_cols = ['brain_age', 'metabo_age', "bmi"]
     elif (model == "M4"):
-        data_cols = ["brain_age", "Age", "sex", "dm", "bmi", "education_category_3"]
+        data_cols = ["brain_age", "sex", "dm", "bmi", "education_category_3"]
         extra_cols = ["Age", "Lag_time", "Sens_1"]
+        #norm_cols = ['brain_age', 'metabo_age', ""]
     elif (model == "M5"):
         data_cols = ["brain_age", "Age", "sex", "dm", "bmi", "education_category_3"]
         extra_cols = ["Age", "Lag_time", "Sens_2"]
@@ -70,8 +74,9 @@ def define_model(model, use_dm = True, use_age = True):
         data_cols.remove("dm")
     if (use_age == False) and (model != "M1"):
         extra_cols.remove("Age")
+        to_norm_cols.remove("Age")
     #print(data_cols)
-    return data_cols, extra_cols
+    return data_cols, extra_cols, to_norm_cols
 
 
 def get_results(client, task, max_attempts = 20, print_log = False):
