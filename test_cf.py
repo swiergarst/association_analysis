@@ -12,6 +12,27 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 import pickle
 from tqdm import tqdm
 import pandas as pd
+from sklearn.linear_model import LinearRegression
+
+def test_central(X_full, y_full):
+
+    #full_X,full_Y = construct_XY(dset_paths)
+    lm = LinearRegression(fit_intercept=False)
+    lm.fit(X_full, y_full)
+
+    return lm.coef_
+
+def test_central_hase(X_full, y_full):
+    A = np.matmul(X_full.T, X_full)
+    B = X_full.T * y_full
+
+    A_inv = np.linalg.pinv(A)
+
+    beta_hat = np.matmul(A_inv, B)
+
+    beta_hat_total = np.sum(beta_hat, axis = 1)
+    return(beta_hat_total)
+
 
 
 
@@ -21,14 +42,14 @@ client.setup_encryption(None)
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
 
-model = "M1"
+model = "M5"
 use_dm = True
 use_age = True
-use_deltas = False
+use_deltas = True
 
 all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri","birth_year", "sex",  "dm", "education_category_3", "bmi"]
 #all_cols = [None]
-image_name = "sgarst/association-analysis:1.6.1"
+image_name = "sgarst/association-analysis:haseTest"
 
 data_cols, extra_cols, to_norm_cols = define_model(model, use_dm = use_dm, use_age = use_age)
 
@@ -39,14 +60,15 @@ task = client.post_task(
             #"data_cols" : data_cols,
             #"data_cols" : data_cols_norm,
             #"data_cols" : ['brain_age', "metabo_age"],#, "bmi"],
-            "data_cols" : to_norm_cols,
+            "all_cols" : all_cols,
+            "data_cols" : data_cols,
             "extra_cols" : extra_cols,
             "use_deltas" : use_deltas
             # "col_name" :  ['metabo_age', 'brain_age']
         }
     }, 
-    name = "calculate A, B and C"
-    image=image_name
+    name = "calculate A, B and C",
+    image=image_name,
     organization_ids=ids,
     collaboration_id=1
 )
@@ -54,10 +76,15 @@ task = client.post_task(
 ABC_results = get_results(client, task, print_log=False)
 
 As = np.array([ABC_result['A'] for ABC_result in ABC_results])
-Bs = np.array([ABC_result['B'] for ABC_result in ABC_results])
+#Bs = np.array([ABC_result['B'] for ABC_result in ABC_results])
+
+full_B = np.array(ABC_results[0]['B'])
+
+for i in range(1, len(ABC_results)):
+    full_B = np.concatenate((full_B, ABC_results[i]['B']), axis = 1)
 
 full_A = np.sum(As, axis = 0)
-full_B = np.concatenate((Bs), axis = 1)
+#full_B = np.concatenate((Bs), axis = 1)
 
 A_inv = np.linalg.pinv(full_A)
 
@@ -68,7 +95,8 @@ data_task = client.post_task(
     input_={
         "method" : "return_data",
         "kwargs" : {
-            "data_cols" : to_norm_cols,
+            "all_cols" : all_cols,
+            "data_cols" : data_cols,
             "extra_cols" : extra_cols,
             "use_deltas" : use_deltas
         }
@@ -79,9 +107,34 @@ data_task = client.post_task(
     collaboration_id=1
 )
 
-data_results = get_results(client, task, print_log = False)
+data_results = get_results(client, data_task, print_log = False)
 
-full_data_conc = np.array([data_result['data'] for data_result in data_results])
-full_data = np.concatenate((full_data_conc), axis = 1)
+full_data = pd.concat([data_result['data'] for data_result in data_results])
 
-print(full_data.shape)
+central_data_cols = data_results[0]['data_cols']
+
+X = full_data[central_data_cols].values.astype(float)
+y = full_data["metabo_age"].values.astype(float)
+
+
+beta_hat_central = test_central_hase(X, y)
+beta_ground = test_central(X, y)
+
+plt.plot(beta_ground, beta_hat, ".")
+plt.plot(np.arange(-10, 70, 1), np.arange(-10, 70 ,1))
+plt.grid(True)
+plt.xlabel("federated betas")
+plt.ylabel("central betas")
+plt.title("federated hase vs central lin reg")
+
+
+plt.show()
+
+plt.plot(beta_hat_central, beta_hat, ".")
+plt.plot(np.arange(-10, 70, 1), np.arange(-10, 70 ,1))
+plt.grid(True)
+plt.xlabel("federated betas")
+plt.ylabel("central betas_hat")
+plt.title("federated hase vs central hase")
+
+plt.show()

@@ -1,10 +1,10 @@
 from sklearn.linear_model import SGDRegressor
 from sklearn.preprocessing import OneHotEncoder
 import numpy as np
-#from vantage6.tools.util import info
+from vantage6.tools.util import info
 import math
 import os
-#import psycopg2
+import psycopg2
 import pandas as pd
 from datetime import datetime
 import matplotlib.pyplot as plt
@@ -47,13 +47,12 @@ def RPC_calc_ABC(db_client, all_cols, data_cols, extra_cols, normalize = "none",
     
     data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize, global_mean = global_mean, global_std = global_std, use_deltas = use_deltas)
     
-    
     X = data[data_cols].values.astype(float)
 
     if "mh" in extra_cols:
         y = data['metabo_health'].values.reshape(-1, 1,).astype(float)
     else:
-        y = data["metabo_age"].values.reshape(-1, 1).astype(float)
+        y = data["metabo_age"].values.astype(float)
     
     #Y = df['target'].values
     A = np.matmul(X.T,X)
@@ -107,6 +106,8 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     
     global_pred = model.predict(X)
 
+
+    info(str(X_train.shape))
     model.partial_fit(X_train, y_train[:,0])
 
     info("model fitted")

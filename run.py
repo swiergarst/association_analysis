@@ -37,19 +37,20 @@ ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 n_runs = 1 # amount of runs 
 n_rounds = 4 # communication rounds between centers
 lr = 0.0005 # learning rate
-model = "M3" # model selection (see analysis plan)
+model = "M2" # model selection (see analysis plan)
 bin_width = 0.2
 write_file = False
 use_dm = True
-use_age = True
-use_deltas = False #whether to look at delta metabo/brainage
+use_age = False
+use_deltas = True #whether to look at delta metabo/brainage
 normalize = "global" # options: local, global, none
 n_clients = len(ids)
 seed_offset = 0
 
 all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri","birth_year", "sex",  "dm", "education_category_3", "bmi"]
 #all_cols = [None]
-image_name = "sgarst/association-analysis:1.6.1"
+image_name = "sgarst/association-analysis:haseTest"
+#image_name = "sgarst/federated-learning:1.6"
 ## init data structures ## 
 
 betas = np.zeros((n_runs, n_rounds, n_clients))
@@ -84,7 +85,7 @@ for run in range(n_runs):
         organization_ids= ids,
         collaboration_id=1
     )
-    avg_results = get_results(client, avg_task, print_log=True)
+    avg_results = get_results(client, avg_task, print_log=False)
 
     means = np.array([result['mean'] for result in avg_results])
     sizes = np.array([result['size'] for result in avg_results])
