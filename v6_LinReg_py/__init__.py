@@ -1,14 +1,14 @@
 from sklearn.linear_model import SGDRegressor
 from sklearn.preprocessing import OneHotEncoder
 import numpy as np
-from vantage6.tools.util import info
+#from vantage6.tools.util import info
 import math
 import os
-import psycopg2
+#import psycopg2
 import pandas as pd
 from datetime import datetime
 import matplotlib.pyplot as plt
-
+#from vantage6.algorithm.tools.decorators import algorithm_client, data
 
 
 ALL_COLS = ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri", "birth_year", "sex", "dm", "bmi", "education_category_3"]
@@ -17,105 +17,57 @@ CAT_COLS = ['education_category_3', 'sex', "dm"]
 def master():
     pass
 
-def construct_data(all_cols, data_cols, extra_cols, normalize = 'none', PG_URI = None, cat_cols = CAT_COLS, global_mean = 0, global_std = 1, use_deltas = False):
-    data_df = pd.DataFrame()
+#used in local tesing (vantage v.3)
+#@data(1)
+def calc_ABC(df):
+    X = df.drop(columns = ['target']).values
+    Y = df['target'].values
+    A = np.matmul(X.T,X)
+    #A = np.matmul(X, X.T)
+    B = X.T * Y
+    C = Y.T * Y
+    #print(B.shape)
+    return {
+        "A": A.tolist(),
+        "B": B.tolist(),
+        "C": C.tolist()
+    }
+
+### REMOVE BEFORE MERGING ###
+def RPC_return_data(db_client, all_cols, data_cols, extra_cols, normalize = "none", PG_URI = None, cat_cols = CAT_COLS, global_mean = 0, global_std = 1, use_deltas = False):
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize, global_mean = global_mean, global_std = global_std, use_deltas = use_deltas)
+
+    return {
+        "data" : data, 
+        "data_cols" : data_cols
+    }
 
 
-    # could also use this to set URI
-    if PG_URI == None:
-        PG_URI = 'postgresql://{}:{}@{}:{}'.format(
-            os.getenv("PGUSER"),
-            os.getenv("PGPASSWORD"),
-            os.getenv("PGHOST"),
-            os.getenv("PGPORT"))
+def RPC_calc_ABC(db_client, all_cols, data_cols, extra_cols, normalize = "none", PG_URI = None, cat_cols = CAT_COLS, global_mean = 0, global_std = 1, use_deltas = False):
+    
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize, global_mean = global_mean, global_std = global_std, use_deltas = use_deltas)
+    
+    
+    X = data[data_cols].values.astype(float)
 
-    info("connecting to PG DB:" + str(PG_URI))
-    # get data from postgres DB
-    try:
-        connection = psycopg2.connect(PG_URI)
-        cursor = connection.cursor()
-        info("connected to PG database. building dataframe..")
-
-        #incrementally build dataframe
-        for col in all_cols:
-            data_pg = cursor.execute("SELECT {} FROM ncdc".format(col))
-            column_data = cursor.fetchall()
-
-            #fetchall returns a tuple for some reason, so we have to do this
-            data_df[col] = [column_val[0] for column_val in column_data]
-    except psycopg2.Error as e:
-        return e
-
-    # merge rows from same patients (but different visits)
-
-    merge_cols = all_cols.copy()
-    merge_cols.remove("id")
-    data_df = data_df.groupby(["id"]).agg({col : 'first' for col in merge_cols}).reset_index()
-
-    data = data_df[all_cols].dropna()
-    info("base dataframe built. adding columns based on covariates..")
-
-    if ("Lag_time" in extra_cols) or ("Age" in extra_cols) or (use_deltas == True):
-        #calculate age at blood draw and mri scan
-        blood_dates = np.array([date.strftime("%Y") for date in data["date_metabolomics"].values]).astype(int)
-        mri_dates = np.array([date.strftime("%Y") for date in data["date_mri"].values]).astype(int)
-
-        Age_met = blood_dates - data["birth_year"].values
-        Age_brain = mri_dates- data["birth_year"].values
-        if "Lag_time" in extra_cols:
-            data["Lag_time"] = Age_met - Age_brain
-            data_cols.append("Lag_time")
-        if ("Age" in extra_cols) or (use_deltas == True):
-            data["Age"] = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
-            data_cols.append("Age")
-
-    if "Sens_1" in extra_cols:
-        data = data.loc[abs(data['Lag_time']) <= 1].reset_index(drop=True)
-    elif "Sens_2" in extra_cols:
-        data = data.loc[abs(data["Lag_time"]) <= 2].reset_index(drop=True)
+    if "mh" in extra_cols:
+        y = data['metabo_health'].values.reshape(-1, 1,).astype(float)
+    else:
+        y = data["metabo_age"].values.reshape(-1, 1).astype(float)
+    
+    #Y = df['target'].values
+    A = np.matmul(X.T,X)
+    #A = np.matmul(X, X.T)
+    B = X.T * y
+    C = y.T * y
+    #print(B.shape)
+    return {
+        "A": A,
+        "B": B,
+        "C": C
+    }
 
 
-    if use_deltas:
-        data['metabo_age'] = data['metabo_age'].values.astype(float) - data['Age'].values.astype(float)
-        data['brain_age'] = data['brain_age'].values.astype(float) - data['Age'].values.astype(float)
-
-    if normalize != "none":
-
-        norm_cols = [col for col in data_cols if col not in cat_cols]
-        norm_cols.append('metabo_age')
-        std = [None] # we need this to avoid issues with the if-statement later on
-        mean = None
-        if normalize == "local":
-            mean = data[norm_cols].astype(float).mean()
-            std = data[norm_cols].astype(float).std()
-            
-            #data[norm_cols] = tmp2.values
-            #data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
-            #info("normalizing done")
-        elif normalize == "global":
-            mean = global_mean
-            std = global_std
-
-        if 0 in std:
-            info("removing 0's from std")
-            std[std==0] = 1
-
-        info(str(norm_cols))
-        info(str(mean.shape))
-        data[norm_cols] = (data[norm_cols].astype(float) - mean) / std
-        #data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
-        info("normalizing done")  
-
-    if "education_category_3" in data_cols:
-        enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
-        mapped_names = ["ec_1", "ec_2", "ec_3"]
-        mapped_arr = enc.fit_transform(data['education_category_3'].values.reshape(-1, 1))
-        data[mapped_names] = mapped_arr
-        data_cols.extend(mapped_names)
-        data_cols.remove("education_category_3")
-
-
-    return data, data_cols
 
 
 def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = ALL_COLS, cat_cols = CAT_COLS, bin_width = 2, normalize = 'none', global_mean = None, global_std = None, use_deltas = False):
@@ -267,3 +219,105 @@ def RPC_calc_se(db_client, global_mean, global_coefs, global_inter, data_cols, e
             "size" : y.shape[0]
         }
     )
+
+
+
+def construct_data(all_cols, data_cols, extra_cols, normalize = 'none', PG_URI = None, cat_cols = CAT_COLS, global_mean = 0, global_std = 1, use_deltas = False):
+    data_df = pd.DataFrame()
+
+
+    # could also use this to set URI
+    if PG_URI == None:
+        PG_URI = 'postgresql://{}:{}@{}:{}'.format(
+            os.getenv("PGUSER"),
+            os.getenv("PGPASSWORD"),
+            os.getenv("PGHOST"),
+            os.getenv("PGPORT"))
+
+    info("connecting to PG DB:" + str(PG_URI))
+    # get data from postgres DB
+    try:
+        connection = psycopg2.connect(PG_URI)
+        cursor = connection.cursor()
+        info("connected to PG database. building dataframe..")
+
+        #incrementally build dataframe
+        for col in all_cols:
+            data_pg = cursor.execute("SELECT {} FROM ncdc".format(col))
+            column_data = cursor.fetchall()
+
+            #fetchall returns a tuple for some reason, so we have to do this
+            data_df[col] = [column_val[0] for column_val in column_data]
+    except psycopg2.Error as e:
+        return e
+
+    # merge rows from same patients (but different visits)
+
+    merge_cols = all_cols.copy()
+    merge_cols.remove("id")
+    data_df = data_df.groupby(["id"]).agg({col : 'first' for col in merge_cols}).reset_index()
+
+    data = data_df[all_cols].dropna()
+    info("base dataframe built. adding columns based on covariates..")
+
+    if ("Lag_time" in extra_cols) or ("Age" in extra_cols) or (use_deltas == True):
+        #calculate age at blood draw and mri scan
+        blood_dates = np.array([date.strftime("%Y") for date in data["date_metabolomics"].values]).astype(int)
+        mri_dates = np.array([date.strftime("%Y") for date in data["date_mri"].values]).astype(int)
+
+        Age_met = blood_dates - data["birth_year"].values
+        Age_brain = mri_dates- data["birth_year"].values
+        if "Lag_time" in extra_cols:
+            data["Lag_time"] = Age_met - Age_brain
+            data_cols.append("Lag_time")
+        if ("Age" in extra_cols) or (use_deltas == True):
+            data["Age"] = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
+            data_cols.append("Age")
+
+    if "Sens_1" in extra_cols:
+        data = data.loc[abs(data['Lag_time']) <= 1].reset_index(drop=True)
+    elif "Sens_2" in extra_cols:
+        data = data.loc[abs(data["Lag_time"]) <= 2].reset_index(drop=True)
+
+
+    if use_deltas:
+        data['metabo_age'] = data['metabo_age'].values.astype(float) - data['Age'].values.astype(float)
+        data['brain_age'] = data['brain_age'].values.astype(float) - data['Age'].values.astype(float)
+
+    if normalize != "none":
+
+        norm_cols = [col for col in data_cols if col not in cat_cols]
+        norm_cols.append('metabo_age')
+        std = [None] # we need this to avoid issues with the if-statement later on
+        mean = None
+        if normalize == "local":
+            mean = data[norm_cols].astype(float).mean()
+            std = data[norm_cols].astype(float).std()
+            
+            #data[norm_cols] = tmp2.values
+            #data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
+            #info("normalizing done")
+        elif normalize == "global":
+            mean = global_mean
+            std = global_std
+
+        if 0 in std:
+            info("removing 0's from std")
+            std[std==0] = 1
+
+        info(str(norm_cols))
+        info(str(mean.shape))
+        data[norm_cols] = (data[norm_cols].astype(float) - mean) / std
+        #data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
+        info("normalizing done")  
+
+    if "education_category_3" in data_cols:
+        enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
+        mapped_names = ["ec_1", "ec_2", "ec_3"]
+        mapped_arr = enc.fit_transform(data['education_category_3'].values.reshape(-1, 1))
+        data[mapped_names] = mapped_arr
+        data_cols.extend(mapped_names)
+        data_cols.remove("education_category_3")
+
+
+    return data, data_cols
