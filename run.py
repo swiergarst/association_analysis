@@ -37,7 +37,7 @@ ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 n_runs = 1 # amount of runs 
 n_rounds = 4 # communication rounds between centers
 lr = 0.0005 # learning rate
-model = "M2" # model selection (see analysis plan)
+model = "M1" # model selection (see analysis plan)
 bin_width = 0.2
 write_file = False
 use_dm = True
@@ -114,16 +114,18 @@ for run in range(n_runs):
         stds = np.array([result['std_part'] for result in std_results])
         #print(std_results[0]['cols'])
         global_std = np.sqrt(np.sum(stds, axis = 0)/ np.sum(sizes))
+
+        # we need to put metabo_age at the end of the means/stds, since that is where the other task expects it
+        # print(f'global mean before swap: {global_mean}')
+        global_mean[[1, -1]] = global_mean[[-1, 1]]
+        global_std[[1, -1]] = global_std[[-1, 1]]
+        # print(f'global mean after swap: {global_mean}')
     else:
         global_std = None
 
-    print(global_std.shape, global_mean.shape)
+    #print(global_std.shape, global_mean.shape)
 
-    # we need to put metabo_age at the end of the means/stds, since that is where the other task expects it
-    print(f'global mean before swap: {global_mean}')
-    global_mean[[1, -1]] = global_mean[[-1, 1]]
-    global_std[[1, -1]] = global_std[[-1, 1]]
-    print(f'global mean after swap: {global_mean}')
+
 
 
     for round in tqdm(range(n_rounds)):

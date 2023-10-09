@@ -271,19 +271,18 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = 'none', PG_URI =
         if "Lag_time" in extra_cols:
             data["Lag_time"] = Age_met - Age_brain
             data_cols.append("Lag_time")
-        if ("Age" in extra_cols) or (use_deltas == True):
+        if ("Age" in extra_cols):
             data["Age"] = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
             data_cols.append("Age")
+        if (use_deltas == True):
+            age = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
+            data['metabo_age'] = data['metabo_age'].values.astype(float) - age
+            data['brain_age'] = data['brain_age'].values.astype(float) - age
 
     if "Sens_1" in extra_cols:
         data = data.loc[abs(data['Lag_time']) <= 1].reset_index(drop=True)
     elif "Sens_2" in extra_cols:
         data = data.loc[abs(data["Lag_time"]) <= 2].reset_index(drop=True)
-
-
-    if use_deltas:
-        data['metabo_age'] = data['metabo_age'].values.astype(float) - data['Age'].values.astype(float)
-        data['brain_age'] = data['brain_age'].values.astype(float) - data['Age'].values.astype(float)
 
     if normalize != "none":
 
@@ -306,8 +305,8 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = 'none', PG_URI =
             info("removing 0's from std")
             std[std==0] = 1
 
-        info(str(norm_cols))
-        info(str(mean.shape))
+        # info(str(norm_cols))
+        # info(str(mean.shape))
         data[norm_cols] = (data[norm_cols].astype(float) - mean) / std
         #data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
         info("normalizing done")  
