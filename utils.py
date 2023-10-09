@@ -57,11 +57,11 @@ def define_model(model, use_dm = True, use_age = True):
     elif (model == "M4"):
         data_cols = ["brain_age", "sex", "dm", "bmi", "education_category_3"]
         extra_cols = ["Age", "Lag_time", "Sens_1"]
-        to_norm_cols = ['brain_age', 'metabo_age']
+        to_norm_cols = ['brain_age', 'metabo_age', "bmi"]
     elif (model == "M5"):
         data_cols = ["brain_age", "Age", "sex", "dm", "bmi", "education_category_3"]
         extra_cols = ["Age", "Lag_time", "Sens_2"]
-        to_norm_cols = ['brain_age', 'metabo_age']
+        to_norm_cols = ['brain_age', 'metabo_age', "bmi"]
     elif (model == "M6"):
         data_cols = ["brain_age", "Age", "sex", "Lag_time", "dm"]
         extra_cols = ["Age", "Lag_time", "mh"]
@@ -100,3 +100,66 @@ def get_results(client, task, max_attempts = 20, print_log = False):
             
     results = [pickle.loads(BytesIO(res['result']).getvalue()) for res in result]
     return results
+
+
+def normalize_workflow(client, image_name,  to_norm_cols, extra_cols, use_deltas, normalize):
+
+    ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
+
+    avg_task = client.post_task(
+        input_= {
+            "method" : "get_avg",
+            "kwargs" : {
+                #"data_cols" : data_cols,
+                #"data_cols" : data_cols_norm,
+                #"data_cols" : ['brain_age', "metabo_age"],#, "bmi"],
+                "data_cols" : to_norm_cols,
+                "extra_cols" : extra_cols,
+                "use_deltas" : use_deltas
+               # "col_name" :  ['metabo_age', 'brain_age']
+            }
+        },
+        name= "get average",
+        image = image_name,
+        organization_ids= ids,
+        collaboration_id=1
+    )
+    avg_results = get_results(client, avg_task, print_log=False)
+
+    means = np.array([result['mean'] for result in avg_results])
+    sizes = np.array([result['size'] for result in avg_results])
+    print(means[0].shape)
+    global_mean = np.sum([(mean * size) for mean, size in zip(means, sizes)], axis = 0) / np.sum(sizes)
+
+    if normalize == "global":
+        std_task = client.post_task(
+            input_ = {
+                "method" : "get_std",
+                "kwargs" : {
+                    "global_mean" : global_mean,
+                    #"data_cols" : data_cols,
+                    "data_cols" : to_norm_cols,
+                    #"data_cols" : ['brain_age', "metabo_age"],#, "bmi"],
+                    "extra_cols" : extra_cols,
+                    "use_deltas" : use_deltas
+                }
+            },
+            name = "get std",
+            image = image_name,
+            organization_ids=ids,
+            collaboration_id=1
+        )
+        std_results = get_results(client, std_task, print_log=False)
+        stds = np.array([result['std_part'] for result in std_results])
+        #print(std_results[0]['cols'])
+        global_std = np.sqrt(np.sum(stds, axis = 0)/ np.sum(sizes))
+
+        # we need to put metabo_age at the end of the means/stds, since that is where the other task expects it
+        # print(f'global mean before swap: {global_mean}')
+        global_mean[[1, -1]] = global_mean[[-1, 1]]
+        global_std[[1, -1]] = global_std[[-1, 1]]
+        # print(f'global mean after swap: {global_mean}')
+    else:
+        global_std = None
+
+    return global_mean, global_std

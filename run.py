@@ -5,7 +5,7 @@ import json
 from io import BytesIO
 import datetime
 import psycopg2
-from utils import init_global_params, average, define_model, get_results
+from utils import init_global_params, average, define_model, get_results, normalize_workflow
 import time
 import matplotlib.pyplot as plt
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -37,7 +37,7 @@ ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 n_runs = 1 # amount of runs 
 n_rounds = 4 # communication rounds between centers
 lr = 0.0005 # learning rate
-model = "M1" # model selection (see analysis plan)
+model = "M4" # model selection (see analysis plan)
 bin_width = 0.2
 write_file = False
 use_dm = True
@@ -66,62 +66,7 @@ for run in range(n_runs):
     tt_split_seed = run + seed_offset
     # federated iterative process
     global_coefs, global_intercepts = init_global_params(data_cols, extra_cols, param_seed = param_seed)
-    
-    avg_task = client.post_task(
-        input_= {
-            "method" : "get_avg",
-            "kwargs" : {
-                #"data_cols" : data_cols,
-                #"data_cols" : data_cols_norm,
-                #"data_cols" : ['brain_age', "metabo_age"],#, "bmi"],
-                "data_cols" : to_norm_cols,
-                "extra_cols" : extra_cols,
-                "use_deltas" : use_deltas
-               # "col_name" :  ['metabo_age', 'brain_age']
-            }
-        },
-        name= "get average",
-        image = image_name,
-        organization_ids= ids,
-        collaboration_id=1
-    )
-    avg_results = get_results(client, avg_task, print_log=False)
-
-    means = np.array([result['mean'] for result in avg_results])
-    sizes = np.array([result['size'] for result in avg_results])
-    print(means[0].shape)
-    global_mean = np.sum([(mean * size) for mean, size in zip(means, sizes)], axis = 0) / np.sum(sizes)
-
-    if normalize == "global":
-        std_task = client.post_task(
-            input_ = {
-                "method" : "get_std",
-                "kwargs" : {
-                    "global_mean" : global_mean,
-                    #"data_cols" : data_cols,
-                    "data_cols" : to_norm_cols,
-                    #"data_cols" : ['brain_age', "metabo_age"],#, "bmi"],
-                    "extra_cols" : extra_cols,
-                    "use_deltas" : use_deltas
-                }
-            },
-            name = "get std",
-            image = image_name,
-            organization_ids=ids,
-            collaboration_id=1
-        )
-        std_results = get_results(client, std_task, print_log=False)
-        stds = np.array([result['std_part'] for result in std_results])
-        #print(std_results[0]['cols'])
-        global_std = np.sqrt(np.sum(stds, axis = 0)/ np.sum(sizes))
-
-        # we need to put metabo_age at the end of the means/stds, since that is where the other task expects it
-        # print(f'global mean before swap: {global_mean}')
-        global_mean[[1, -1]] = global_mean[[-1, 1]]
-        global_std[[1, -1]] = global_std[[-1, 1]]
-        # print(f'global mean after swap: {global_mean}')
-    else:
-        global_std = None
+    global_mean, global_std = normalize_workflow(client, image_name,  to_norm_cols, extra_cols, use_deltas, normalize)
 
     #print(global_std.shape, global_mean.shape)
 
