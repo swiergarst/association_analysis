@@ -125,7 +125,7 @@ def normalize_workflow(client, image_name,  to_norm_cols, extra_cols, use_deltas
         organization_ids= ids,
         collaboration_id=1
     )
-    avg_results = get_results(client, avg_task, print_log=True)
+    avg_results = get_results(client, avg_task, print_log=False)
     avg_cols = np.array([avg_result['cols'] for avg_result in avg_results])
     means = np.array([result['mean'] for result in avg_results])
     sizes = np.array([result['size'] for result in avg_results])

@@ -17,7 +17,7 @@ from sklearn.linear_model import LinearRegression
 def test_central(X_full, y_full):
 
     #full_X,full_Y = construct_XY(dset_paths)
-    lm = LinearRegression(fit_intercept=False)
+    lm = LinearRegression(fit_intercept=False, copy_X=True)
     lm.fit(X_full, y_full)
 
     return lm.coef_
@@ -35,28 +35,30 @@ def test_central_hase(X_full, y_full):
 
 
 def test_central_se(X_full, y_full, n_tot):
-    lm = LinearRegression(fit_intercept=False)
+    lm = LinearRegression(fit_intercept=False, copy_X=True)
     lm.fit(X_full, y_full)
     pred = lm.predict(X_full)
 
     top = np.sum((y_full - pred)**2)
-    print(f'sum of squares, central: {top}')
+    #print(f'sum of squares, central: {top}')
     bot = np.sum((X_full - np.mean(X_full, axis = 0))**2, axis = 0)
-    print(X_full[:,0])
-    print(bot)
+    #print(X_full[:,0])
+    #print(bot)
     pre = 1/(n_tot - X_full.shape[1])
     se = np.sqrt(pre * top * bot)
     return se
 
 def test_central_hase_se(X_full, y_full, n_tot):
-    lm = LinearRegression(fit_intercept=False)
+    lm = LinearRegression(fit_intercept=False, copy_X=True)
     lm.fit(X_full, y_full)
     pred = lm.predict(X_full)
 
     top = np.sum((y_full - pred)**2)
-    print(top.shape)
+    print(f' sum of squares central: {top}')
+    A = X.T @ X
+    A_inv_diag = np.diag(np.linalg.pinv(A))
     bot = np.diag(np.linalg.pinv(X.T @ X))
-
+    print(f' X_full shape: {X_full.shape}')
     df = (n_tot - X_full.shape[1])
     se = 1/np.sqrt( df / (bot * top))
     return se
@@ -71,7 +73,7 @@ model = "M3"
 use_dm = True
 use_age = True
 use_deltas = True
-normalize_cat = True
+normalize_cat = False
 normalize = "global"
 
 all_cols =  ["id", "metabo_age", "brain_age", "date_metabolomics", "date_mri","birth_year", "sex",  "dm", "education_category_3", "bmi"]
@@ -110,7 +112,7 @@ task = client.post_task(
     collaboration_id=1
 )
 
-ABC_results = get_results(client, task, print_log=True)
+ABC_results = get_results(client, task, print_log=False)
 
 As = np.array([ABC_result['A'] for ABC_result in ABC_results])
 Bs = np.array([ABC_result['B'] for ABC_result in ABC_results])
@@ -146,6 +148,7 @@ se_part3 = full_C - se_part2
 
 bot = full_C - full_B.T @ A_inv @ full_B
 print(f' sum of squares: {bot}')
+print(f' full_B shape: {full_B.shape}')
 df = global_size - full_B.shape[0]
 
 print(f'C shape: {full_C.shape}')
@@ -179,12 +182,14 @@ data_results = get_results(client, data_task, print_log = False)
 full_data = pd.concat([data_result['data'] for data_result in data_results])
 
 central_data_cols = data_results[0]['data_cols']
-
+#print(central_data_cols)
 X = full_data[central_data_cols].values.astype(float)
 y = full_data["metabo_age"].values.astype(float)
+print(full_data.head())
 
-print(f' allclose: {np.allclose(X.T@X, full_A)}')
 
+beta_hat_central = test_central_hase(X, y)
+beta_ground = test_central(X, y)
 
 se_central = test_central_se(X, y, global_size)
 se_hase_central = test_central_hase_se(X, y, global_size)
@@ -192,8 +197,10 @@ print(f'federated hase se: {se}')
 print(f' central se: {se_central}')
 print(f'central hase se: {se_hase_central}')
 
-beta_hat_central = test_central_hase(X, y)
-beta_ground = test_central(X, y)
+
+print(f' allclose A: {np.allclose(X.T@X, full_A)}')
+print(f' allclose B: {np.allclose(X.T@y, full_B)}')
+print(f' allclose C: {np.allclose(y.T@y, full_C)}')
 
 # print(beta_ground.shape, beta_hat_central.shape, beta_hat.shape)
 
