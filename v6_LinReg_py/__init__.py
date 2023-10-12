@@ -34,8 +34,8 @@ def calc_ABC(df):
     }
 
 ### REMOVE BEFORE MERGING ###
-def RPC_return_data(db_client, all_cols, data_cols, extra_cols, normalize = "none", PG_URI = None, cat_cols = CAT_COLS, global_mean = 0, global_std = 1, use_deltas = False):
-    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize, global_mean = global_mean, global_std = global_std, use_deltas = use_deltas)
+def RPC_return_data(db_client, all_cols, data_cols, extra_cols, normalize = "none", PG_URI = None, cat_cols = CAT_COLS, global_mean = 0, global_std = 1, use_deltas = False, normalize_cat = False):
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize, global_mean = global_mean, global_std = global_std, use_deltas = use_deltas, normalize_cat=normalize_cat)
 
     return {
         "data" : data, 
@@ -43,10 +43,11 @@ def RPC_return_data(db_client, all_cols, data_cols, extra_cols, normalize = "non
     }
 
 
-def RPC_calc_ABC(db_client, all_cols, data_cols, extra_cols, normalize = "none", PG_URI = None, cat_cols = CAT_COLS, global_mean = 0, global_std = 1, use_deltas = False):
+def RPC_calc_ABC(db_client, all_cols, data_cols, extra_cols, normalize = "none", PG_URI = None, cat_cols = CAT_COLS, global_mean = 0, global_std = 1, use_deltas = False, normalize_cat = False):
     
-    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize, global_mean = global_mean, global_std = global_std, use_deltas = use_deltas)
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize, global_mean = global_mean, global_std = global_std, use_deltas = use_deltas, normalize_cat = normalize_cat)
     
+    info("data cols: ")
     X = data[data_cols].values.astype(float)
 
     if "mh" in extra_cols:
@@ -57,8 +58,8 @@ def RPC_calc_ABC(db_client, all_cols, data_cols, extra_cols, normalize = "none",
     #Y = df['target'].values
     A = np.matmul(X.T,X)
     #A = np.matmul(X, X.T)
-    B = X.T * y
-    C = y.T * y
+    B = X.T @ y
+    C = y.T @ y
     #print(B.shape)
     return {
         "A": A,
@@ -69,17 +70,16 @@ def RPC_calc_ABC(db_client, all_cols, data_cols, extra_cols, normalize = "none",
 
 
 
-def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = ALL_COLS, cat_cols = CAT_COLS, bin_width = 2, normalize = 'none', global_mean = None, global_std = None, use_deltas = False):
+def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed, PG_URI = None, all_cols = ALL_COLS, cat_cols = CAT_COLS, bin_width = 2, normalize = 'none', global_mean = None, global_std = None, use_deltas = False, normalize_cat = False):
 
 
     info("starting fit_round")
     #TODO: calc metaboage/health through PHT
 
     
-    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize, global_mean = global_mean, global_std = global_std, use_deltas = use_deltas)
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, cat_cols = cat_cols, normalize=normalize, global_mean = global_mean, global_std = global_std, use_deltas = use_deltas, normalize_cat=normalize_cat)
     
     X = data[data_cols].values.astype(float)
-
 
 
     if "mh" in extra_cols:
@@ -100,7 +100,7 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     y_train = y[train_mask]
     y_test = y[~train_mask]
 
-    model = SGDRegressor(loss="squared_error", penalty=None, max_iter = 1, eta0=lr)
+    model = SGDRegressor(loss="squared_error", penalty=None, max_iter = 1, eta0=lr, fit_intercept=False)
     model.coef_ = np.copy(coefs)
     model.intercept_ = np.copy(intercepts)
     
@@ -169,20 +169,21 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
         }
     }
    
-def RPC_get_avg(db_client, data_cols, extra_cols, all_cols = ALL_COLS, PG_URI = None, use_deltas = False):
+def RPC_get_avg(db_client, data_cols, extra_cols, all_cols = ALL_COLS, PG_URI = None, use_deltas = False, normalize_cat = False):
 
 
-    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, normalize = 'none', use_deltas=use_deltas)
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, normalize = 'none', use_deltas=use_deltas, normalize_cat = normalize_cat)
+    data_cols.append("metabo_age")
     values = data[data_cols].values.astype(float)
-    info(str(data_cols))
     return{
         "mean" : np.mean(values, axis = 0),
-        #"cols" : data_cols,
+        "cols" : data_cols,
         "size" : values.shape[0]
     }
 
-def RPC_get_std(db_client, global_mean, data_cols, extra_cols, PG_URI = None, all_cols = ALL_COLS, use_deltas = False):
-    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, normalize = 'none', use_deltas = use_deltas)
+def RPC_get_std(db_client, global_mean, data_cols, extra_cols, PG_URI = None, all_cols = ALL_COLS, use_deltas = False, normalize_cat = False):
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, normalize = 'none', use_deltas = use_deltas, normalize_cat=normalize_cat)
+    data_cols.append("metabo_age")
     values = data[data_cols].values.astype(float)
     #info(str(values.shape) + "," +  str(global_mean.shape))
     std_part = np.sum(np.square(values - global_mean), axis = 0)
@@ -193,16 +194,14 @@ def RPC_get_std(db_client, global_mean, data_cols, extra_cols, PG_URI = None, al
     }
     
 
-def RPC_calc_se(db_client, global_mean, global_coefs, global_inter, data_cols, extra_cols, all_cols = ALL_COLS, PG_URI = None):
+def RPC_calc_se(db_client, global_mean, global_std, global_coefs, global_inter, data_cols, extra_cols, all_cols = ALL_COLS, PG_URI = None, normalize = 'none', use_deltas = False, norm_cat = False):
 
-
-    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI)
+    #info("data cols: " + str(data_cols))
+    data, data_cols = construct_data(all_cols, data_cols, extra_cols, PG_URI = PG_URI, normalize=normalize, use_deltas=use_deltas, global_mean=global_mean, global_std=global_std, normalize_cat=norm_cat)
     ba = data["brain_age"].values.astype(float)
 
     X = data[data_cols].values.astype(float)
     y = data["metabo_age"].values.reshape(-1, 1).astype(float)
-    
-
     model = SGDRegressor(loss="squared_error", penalty=None, max_iter = 1, eta0=0)
     
     model.coef_ = np.copy(global_coefs)
@@ -211,7 +210,7 @@ def RPC_calc_se(db_client, global_mean, global_coefs, global_inter, data_cols, e
     global_pred = model.predict(X)
 
     top = (np.subtract(y[:,0] , global_pred))**2
-    bot = (ba - global_mean)**2
+    bot = (X - global_mean[:-1])**2
 
     return(
         {
@@ -223,7 +222,7 @@ def RPC_calc_se(db_client, global_mean, global_coefs, global_inter, data_cols, e
 
 
 
-def construct_data(all_cols, data_cols, extra_cols, normalize = 'none', PG_URI = None, cat_cols = CAT_COLS, global_mean = 0, global_std = 1, use_deltas = False):
+def construct_data(all_cols, data_cols, extra_cols, normalize = 'none', PG_URI = None, cat_cols = CAT_COLS, global_mean = 0, global_std = 1, use_deltas = False, normalize_cat = False):
     data_df = pd.DataFrame()
 
 
@@ -284,9 +283,22 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = 'none', PG_URI =
     elif "Sens_2" in extra_cols:
         data = data.loc[abs(data["Lag_time"]) <= 2].reset_index(drop=True)
 
-    if normalize != "none":
+    if "education_category_3" in data_cols:
+        enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
+        mapped_names = ["ec_1", "ec_2", "ec_3"]
+        mapped_arr = enc.fit_transform(data['education_category_3'].values.reshape(-1, 1))
+        data[mapped_names] = mapped_arr
+        data_cols.extend(mapped_names)
+        data_cols.remove("education_category_3")
 
-        norm_cols = [col for col in data_cols if col not in cat_cols]
+
+    if normalize != "none":
+        
+        if normalize_cat:
+            norm_cols = data_cols.copy()
+        else:
+            norm_cols = [col for col in data_cols if col not in cat_cols]
+
         norm_cols.append('metabo_age')
         std = [None] # we need this to avoid issues with the if-statement later on
         mean = None
@@ -307,17 +319,11 @@ def construct_data(all_cols, data_cols, extra_cols, normalize = 'none', PG_URI =
 
         # info(str(norm_cols))
         # info(str(mean.shape))
+        info('normalizing: ' + str(norm_cols))
         data[norm_cols] = (data[norm_cols].astype(float) - mean) / std
         #data[norm_cols] = (data[norm_cols].astype(float) - data[norm_cols].astype(float).mean())/ data[norm_cols].astype(float).std()
         info("normalizing done")  
 
-    if "education_category_3" in data_cols:
-        enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
-        mapped_names = ["ec_1", "ec_2", "ec_3"]
-        mapped_arr = enc.fit_transform(data['education_category_3'].values.reshape(-1, 1))
-        data[mapped_names] = mapped_arr
-        data_cols.extend(mapped_names)
-        data_cols.remove("education_category_3")
 
 
     return data, data_cols

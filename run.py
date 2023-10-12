@@ -12,6 +12,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 import pickle
 from tqdm import tqdm
 import pandas as pd
+from sklearn.linear_model import SGDRegressor
 
 print("Attempt login to Vantage6 API")
 # client = Client("https://vantage6-server.researchlumc.nl", 443, "/api")
@@ -35,14 +36,15 @@ ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 ## Parameter settings ##
 
 n_runs = 1 # amount of runs 
-n_rounds = 4 # communication rounds between centers
-lr = 0.0005 # learning rate
-model = "M4" # model selection (see analysis plan)
+n_rounds = 2 # communication rounds between centers
+lr = 0.005 # learning rate
+model = "M3" # model selection (see analysis plan)
 bin_width = 0.2
 write_file = False
 use_dm = True
-use_age = False
+use_age = True
 use_deltas = True #whether to look at delta metabo/brainage
+normalize_cat = True
 normalize = "global" # options: local, global, none
 n_clients = len(ids)
 seed_offset = 0
@@ -60,15 +62,43 @@ data_cols, extra_cols, to_norm_cols = define_model(model, use_dm = use_dm, use_a
 #data_cols_norm = data_cols.copy()
 #data_cols_norm.append("metabo_age")
 #print(data_cols_norm)
+def verify_se(X_full, y_full, coefs, n_tot):
+    lm = SGDRegressor(fit_intercept=False)
+    lm.coef_ = coefs
+    lm.intercept_ = 0
+    y_pred = lm.predict(X_full)
+    res = np.sum((y_full - y_pred)**2)
+    #sos = res.T @ res
+    p = X_full.shape[1]
+    bot = np.sum((X_full - np.mean(X_full, axis = 0))**2, axis = 0)
+    print(f'bot shape: {bot.shape}')
+    #var_beta_hat = np.linalg.inv(X_full.T @ X_full) * sigma_squared_hat
+    se = np.sqrt(1/ (n_tot - p) * (res / bot))
+    return se
+
+def verify_hase_se(X_full, y_full, coefs, n_tot):
+    lm = SGDRegressor(fit_intercept=False)
+    lm.coef_ = coefs
+    lm.intercept_ = 0
+    y_pred = lm.predict(X_full)
+    res = np.sum((y_full - y_pred)**2)
+    #sos = res.T @ res
+    p = X_full.shape[1]
+    bot = np.diag(np.linalg.pinv(X.T @ X))
+    #var_beta_hat = np.linalg.inv(X_full.T @ X_full) * sigma_squared_hat
+    se = np.sqrt(1/ (n_tot - p) * (res * bot))
+    return se
+
 for run in range(n_runs):
 
     param_seed = run + seed_offset
     tt_split_seed = run + seed_offset
     # federated iterative process
     global_coefs, global_intercepts = init_global_params(data_cols, extra_cols, param_seed = param_seed)
-    global_mean, global_std = normalize_workflow(client, image_name,  to_norm_cols, extra_cols, use_deltas, normalize)
+    # global_mean, global_std, _ = normalize_workflow(client, image_name,  to_norm_cols, extra_cols, use_deltas, normalize, normalize_cat = normalize_cat)
+    global_mean, global_std, _, avg_cols = normalize_workflow(client, image_name,  data_cols, extra_cols, use_deltas, normalize, normalize_cat = normalize_cat)
 
-    #print(global_std.shape, global_mean.shape)
+    print(global_std.shape, global_mean.shape)
 
 
 
@@ -91,7 +121,8 @@ for run in range(n_runs):
                     "normalize" : normalize,
                     "global_mean" : global_mean,
                     "global_std" : global_std,
-                    "use_deltas" : use_deltas
+                    "use_deltas" : use_deltas,
+                    "normalize_cat" : normalize_cat
                     }
                 },
             name = "Analysis fit regressor, round" + str(round),
@@ -129,18 +160,21 @@ for run in range(n_runs):
 
     print('finished model fitting, calculating standard error..')
 
-    #print(means, global_mean)
-
     se_task = client.post_task(
         input_ = {
             "method" : "calc_se",
             "kwargs" : {
-                "global_mean" : global_mean[0],
+                "global_mean" : global_mean,
+                "global_std" : global_std,
                 "global_coefs" : global_coefs,
                 "global_inter" : global_intercepts,
                 "data_cols" : data_cols,
                 "all_cols" : all_cols,
                 "extra_cols" : extra_cols,
+                "use_deltas" : use_deltas,
+                "normalize" : normalize,
+                "norm_cat" : normalize_cat
+
             }
         },
             name ="se calculation",
@@ -149,18 +183,54 @@ for run in range(n_runs):
             collaboration_id=1
     )   
 
-    se_results = get_results(client, se_task, print_log = False)
-    tops = [np.sum(result['top']) for result in se_results]
-    bots = [np.sum(result['bot']) for result in se_results]
+    se_results = get_results(client, se_task, print_log = True)
+    tops = np.array([result['top'] for result in se_results])
+    bots = np.array([result['bot'] for result in se_results])
     sizes = [result['size'] for result in se_results]
 
     top_sum = np.sum(tops)
-    bot_sum = np.sum(bots)
+    bot_sum = np.sum(np.concatenate([bots[i,:,:] for i in range(bots.shape[0])]),axis = 0)
     full_size = np.sum(sizes)
+    print(top_sum.shape, bot_sum.shape)
 
-    se = np.sqrt((1/(full_size - 2)) * (float(top_sum) / float(bot_sum)))
+    se = np.sqrt((1/(full_size - bot_sum.shape[0])) * (float(top_sum) / bot_sum.astype(float)))
+    print(f'standard error federated: {se}')
 
-    #print(f'standard error: {se}')
+
+data_task = client.post_task(
+    input_={
+        "method" : "return_data",
+        "kwargs" : {
+            "all_cols" : all_cols,
+            "data_cols" : data_cols,
+            "extra_cols" : extra_cols,
+            "use_deltas" : use_deltas,
+            "normalize" : normalize,
+            "global_mean" : global_mean,
+            "global_std" : global_std,
+            "normalize_cat" :normalize_cat
+        }
+    },
+    name = "get data",
+    image = image_name,
+    organization_ids=ids,
+    collaboration_id=1
+)
+
+data_results = get_results(client, data_task, print_log = False)
+
+full_data = pd.concat([data_result['data'] for data_result in data_results])
+
+central_data_cols = data_results[0]['data_cols']
+
+X = full_data[central_data_cols].values.astype(float)
+y = full_data["metabo_age"].values.astype(float)
+
+se_central = verify_se(X, y, global_coefs,full_size)
+se_hase_central = verify_hase_se(X, y, global_coefs, full_size)
+print(f'se central: {se_central}')
+print(f'se hase central: {se_hase_central}')
+
 
 branges = [result['resplot']['ranges'].tolist() for result in results]
 

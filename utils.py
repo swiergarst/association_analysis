@@ -102,7 +102,7 @@ def get_results(client, task, max_attempts = 20, print_log = False):
     return results
 
 
-def normalize_workflow(client, image_name,  to_norm_cols, extra_cols, use_deltas, normalize):
+def normalize_workflow(client, image_name,  to_norm_cols, extra_cols, use_deltas, normalize, normalize_cat = False):
 
     ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
@@ -115,7 +115,8 @@ def normalize_workflow(client, image_name,  to_norm_cols, extra_cols, use_deltas
                 #"data_cols" : ['brain_age', "metabo_age"],#, "bmi"],
                 "data_cols" : to_norm_cols,
                 "extra_cols" : extra_cols,
-                "use_deltas" : use_deltas
+                "use_deltas" : use_deltas,
+                "normalize_cat" : normalize_cat
                # "col_name" :  ['metabo_age', 'brain_age']
             }
         },
@@ -124,8 +125,8 @@ def normalize_workflow(client, image_name,  to_norm_cols, extra_cols, use_deltas
         organization_ids= ids,
         collaboration_id=1
     )
-    avg_results = get_results(client, avg_task, print_log=False)
-
+    avg_results = get_results(client, avg_task, print_log=True)
+    avg_cols = np.array([avg_result['cols'] for avg_result in avg_results])
     means = np.array([result['mean'] for result in avg_results])
     sizes = np.array([result['size'] for result in avg_results])
     print(means[0].shape)
@@ -141,7 +142,8 @@ def normalize_workflow(client, image_name,  to_norm_cols, extra_cols, use_deltas
                     "data_cols" : to_norm_cols,
                     #"data_cols" : ['brain_age', "metabo_age"],#, "bmi"],
                     "extra_cols" : extra_cols,
-                    "use_deltas" : use_deltas
+                    "use_deltas" : use_deltas,
+                    "normalize_cat" : normalize_cat
                 }
             },
             name = "get std",
@@ -162,4 +164,4 @@ def normalize_workflow(client, image_name,  to_norm_cols, extra_cols, use_deltas
     else:
         global_std = None
 
-    return global_mean, global_std
+    return global_mean, global_std, np.sum(sizes), avg_cols
