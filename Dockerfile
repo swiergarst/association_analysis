@@ -13,7 +13,6 @@ ARG PKG_NAME="v6_LinReg_py"
 #COPY ./requirements.txt requirements.txt
 #RUN pip install -r requirements.txt
 
-
 COPY . /app
 
 #FROM python 
