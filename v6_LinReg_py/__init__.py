@@ -8,9 +8,9 @@ from sklearn.preprocessing import OneHotEncoder
 
 import sys
 import os
-sys.path.insert(1, os.path.join(sys.path[0], '..'))
+sys.path.insert(1, os.path.join(sys.path[0], '../v6_LinReg_py'))
 
-from V6_implementation.v6_LinReg_py.constants import *
+from .constants import *
 
 
 
@@ -20,6 +20,36 @@ def RPC_get_avg(db_client, data_settings):
     data = complete_dataframe(data_tmp, data_settings[SYNTH_COLS],data_settings[USE_DELTAS])
 
     return {"averages" : data.mean().to_frame().T,
+            "size" : data.shape[0]
+            }
+
+
+def RPC_get_std(db_client, data_settings: dict, global_mean: pd.DataFrame):
+    data_tmp = build_dataframe(data_settings[DIRECT_COLS])
+
+    data = complete_dataframe(data_tmp, data_settings[SYNTH_COLS],data_settings[USE_DELTAS])
+    
+    partial_std = ((data.astype(float) - global_mean)**2).sum(axis = 1)
+    return {
+        "std" : partial_std.to_frame().T,
+        "size" : data.shape[0]
+    }
+
+def RPC_get_avg_std(db_client, data_settings: dict, sel):
+    data_tmp = build_dataframe(data_settings[DIRECT_COLS])
+
+    data = complete_dataframe(data_tmp, data_settings[SYNTH_COLS],data_settings[USE_DELTAS])
+    
+    
+    if sel == "mean":
+        out = data.mean().to_frame().T
+    elif sel == "std":
+        out = data.std().to_frame().T
+    else:
+        raise(ValueError(f"undefined value for sel: {sel}"))
+
+
+    return {sel : out,
             "size" : data.shape[0]
             }
 
@@ -71,11 +101,13 @@ def complete_dataframe(df, cols_to_add, use_deltas = False):
 
     if (LAG_TIME in cols_to_add) or (AGE in cols_to_add) or (use_deltas == True):
         #calculate age at blood draw and mri scan
-        blood_dates = np.array([date.strftime("%Y") for date in df[DATE_METABOLOMICS].values]).astype(int)
-        mri_dates = np.array([date.strftime("%Y") for date in df[DATE_MRI].values]).astype(int)
+        cols_for_tmp_df = [DATE_METABOLOMICS, DATE_MRI, BIRTH_YEAR]
+        tmp_df = build_dataframe(cols_for_tmp_df)
+        blood_dates = np.array([date.strftime("%Y") for date in tmp_df[DATE_METABOLOMICS].values]).astype(int)
+        mri_dates = np.array([date.strftime("%Y") for date in tmp_df[DATE_MRI].values]).astype(int)
 
-        Age_met = blood_dates - df[BIRTH_YEAR].values
-        Age_brain = mri_dates- df[BIRTH_YEAR].values
+        Age_met = blood_dates - tmp_df[BIRTH_YEAR].values
+        Age_brain = mri_dates- tmp_df[BIRTH_YEAR].values
         if LAG_TIME in cols_to_add:
             df[LAG_TIME] = Age_met - Age_brain
         if (AGE in cols_to_add):
@@ -85,15 +117,18 @@ def complete_dataframe(df, cols_to_add, use_deltas = False):
             df[METABO_AGE] = df[METABO_AGE].values.astype(float) - age
             df[BRAIN_AGE] = df[BRAIN_AGE].values.astype(float) - age
 
+
+    if EDUCATION_CATEGORY in cols_to_add:
+        tmp_df = build_dataframe([EDUCATION_CATEGORY])
+        enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
+        mapped_names = [EC1, EC2, EC3]
+        mapped_arr = enc.fit_transform(tmp_df[EDUCATION_CATEGORY].values.reshape(-1, 1))
+        df[mapped_names] = mapped_arr
+
     if SENSITIVITY_1 in cols_to_add:
         df = df.loc[abs(df[LAG_TIME]) <= 1].reset_index(drop=True)
     elif SENSITIVITY_2 in cols_to_add:
         df = df.loc[abs(df[LAG_TIME]) <= 2].reset_index(drop=True)
 
-    if EDUCATION_CATEGORY in cols_to_add:
-        enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
-        mapped_names = [EC1, EC2, EC3]
-        mapped_arr = enc.fit_transform(df[EDUCATION_CATEGORY].values.reshape(-1, 1))
-        df[mapped_names] = mapped_arr
     info("dataframe finished")
     return df
