@@ -71,10 +71,6 @@ def RPC_get_std(db_client, data_settings: dict, global_mean: pd.DataFrame):
     data_tmp = build_dataframe(data_settings[DIRECT_COLS])
 
     data = complete_dataframe(data_tmp, data_settings[SYNTH_COLS],data_settings[USE_DELTAS])
-    
-    tmp1 = data.astype(float) - global_mean
-    tmp2 = tmp1.pow(2)
-    tmp3 = tmp2.sum()
 
     partial_std = ((data.astype(float) - global_mean.squeeze())**2).sum(axis = 0)
 
