@@ -57,42 +57,43 @@ def build_dataframe(cols, PG_URI = None):
 
 def complete_dataframe(df, cols_to_add, use_deltas = False):
     info("adding columns based on covariates")
+    try:
+        if (LAG_TIME in cols_to_add) or (AGE in cols_to_add) or (use_deltas == True):
+            #calculate age at blood draw and mri scan
+            cols_for_tmp_df = [DATE_METABOLOMICS, DATE_MRI, BIRTH_YEAR]
+            tmp_df = build_dataframe(cols_for_tmp_df)
+            blood_dates = np.array([date.strftime("%Y") for date in tmp_df[DATE_METABOLOMICS].values]).astype(int)
+            mri_dates = np.array([date.strftime("%Y") for date in tmp_df[DATE_MRI].values]).astype(int)
 
-    if (LAG_TIME in cols_to_add) or (AGE in cols_to_add) or (use_deltas == True):
-        #calculate age at blood draw and mri scan
-        cols_for_tmp_df = [DATE_METABOLOMICS, DATE_MRI, BIRTH_YEAR]
-        tmp_df = build_dataframe(cols_for_tmp_df)
-        blood_dates = np.array([date.strftime("%Y") for date in tmp_df[DATE_METABOLOMICS].values]).astype(int)
-        mri_dates = np.array([date.strftime("%Y") for date in tmp_df[DATE_MRI].values]).astype(int)
-
-        Age_met = blood_dates - tmp_df[BIRTH_YEAR].values
-        Age_brain = mri_dates- tmp_df[BIRTH_YEAR].values
-        if LAG_TIME in cols_to_add:
-            df[LAG_TIME] = Age_met - Age_brain
-        if (AGE in cols_to_add):
-            df[AGE] = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
-        if (use_deltas == True):
-            age = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
-            df[METABO_AGE] = df[METABO_AGE].values.astype(float) - age
-            df[BRAIN_AGE] = df[BRAIN_AGE].values.astype(float) - age
+            Age_met = blood_dates - tmp_df[BIRTH_YEAR].values
+            Age_brain = mri_dates- tmp_df[BIRTH_YEAR].values
+            if LAG_TIME in cols_to_add:
+                df[LAG_TIME] = Age_met - Age_brain
+            if (AGE in cols_to_add):
+                df[AGE] = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
+            if (use_deltas == True):
+                age = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
+                df[METABO_AGE] = df[METABO_AGE].values.astype(float) - age
+                df[BRAIN_AGE] = df[BRAIN_AGE].values.astype(float) - age
 
 
-    if EDUCATION_CATEGORY in cols_to_add:
-        tmp_df = build_dataframe([EDUCATION_CATEGORY])
-        enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
-        mapped_names = [EC1, EC2, EC3]
-        info("creating mapped array")
-        mapped_arr = enc.fit_transform(tmp_df[EDUCATION_CATEGORY].values.reshape(-1, 1))
-        info("created mapped array")
-        df[mapped_names] = mapped_arr
+        if EDUCATION_CATEGORY in cols_to_add:
+            tmp_df = build_dataframe([EDUCATION_CATEGORY])
+            enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
+            mapped_names = [EC1, EC2, EC3]
+            mapped_arr = enc.fit_transform(tmp_df[EDUCATION_CATEGORY].values.reshape(-1, 1))
+            df[mapped_names] = mapped_arr
 
-    if SENSITIVITY_1 in cols_to_add:
-        df = df.loc[abs(df[LAG_TIME]) <= 1].reset_index(drop=True)
-    elif SENSITIVITY_2 in cols_to_add:
-        df = df.loc[abs(df[LAG_TIME]) <= 2].reset_index(drop=True)
+        if SENSITIVITY_1 in cols_to_add:
+            df = df.loc[abs(df[LAG_TIME]) <= 1].reset_index(drop=True)
+        elif SENSITIVITY_2 in cols_to_add:
+            df = df.loc[abs(df[LAG_TIME]) <= 2].reset_index(drop=True)
 
-    info("dataframe finished")
-    return df
+        info("dataframe finished")
+        return df
+    except Exception as e:
+        info(f'ran into an exception in complete_dataframe: {e}')
+        return e
 
 
 def create_test_train_split(X, y, seed):
