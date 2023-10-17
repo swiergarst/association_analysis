@@ -88,7 +88,7 @@ AGE = "Age"
 ALL_EXISTING_COLS_VALUES = [ID, METABO_AGE, BRAIN_AGE, DATE_METABOLOMICS, DATE_MRI, BIRTH_YEAR, SEX, DM, BMI, EDUCATION_CATEGORY] # all columns in the postgres database
 CAT_COLS_VALUES = [EDUCATION_CATEGORY, SEX, DM, EC1, EC2, EC3] # categorical columns
 EXTRA_COLS_VALUES = [EDUCATION_CATEGORY, SENSITIVITY_1, SENSITIVITY_2, LAG_TIME, AGE] # columns we might want, but need to be synthesized
-
+OPTION_COLS_VALUES = [EDUCATION_CATEGORY, SENSITIVITY_1, SENSITIVITY_2] # these will never be used 'as is'
 
 
 
@@ -106,7 +106,7 @@ MODEL_LEN = "model_len"
 BIN_WIDTH_BOXPLOT = "bw_boxplot"
 GLOBAL_MEAN = "global_mean"
 GLOBAL_STD = "global_std"
- 
+MODEL_COLS = "model_cols"
 ## v6_info ##
 CLIENT = "client"
 IMAGE_NAME = "image_name"
@@ -125,3 +125,8 @@ TEST_MAE = "test_mae"
 TEST_LOSS = "test_loss"
 LOCAL_TRAIN_SIZE = "local_train_size"
 BP = "boxplot"
+
+# calc_se return keys
+TOP = "top"
+BOT = "bot"
+SIZE = "size"

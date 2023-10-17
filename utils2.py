@@ -19,15 +19,18 @@ def generate_v6_info(client, image_name, ids, collab_id):
     v6_info[COLLAB_ID] = collab_id
     return v6_info
 
-def generate_classif_settings(lr, seed, coefs, model_len):
+def generate_classif_settings(lr: float, seed: int, coef_names: list):
     classif_settings = {}
     classif_settings[LR] = lr
     classif_settings[SEED] = seed
 
     # generate initial model params
     s = np.random.default_rng(seed=seed) # we use the same seed as for the test/train split
-    coefs = s.normal(0, 1, model_len)
-    classif_settings[COEF] = np.copy(coefs)
+    model_len = len(coef_names)
+    coefs = s.normal(0, 1, (1,model_len))
+
+    coefs_df = pd.DataFrame(data=coefs, columns = coef_names)
+    classif_settings[COEF] = coefs_df
     return classif_settings
 
 def generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normalize_cat, bin_width = 0.2):
@@ -45,26 +48,26 @@ def generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normal
         data_settings[TARGET] = METABO_AGE
 
     if model == "M1":
-        data_settings[DATA_COLS] = [BRAIN_AGE]
-        data_settings[MODEL_LEN] = 1
+        data_settings[DATA_COLS] = [BRAIN_AGE, METABO_AGE]
+        data_settings[MODEL_COLS] = [BRAIN_AGE]
     elif model == "M2":
-        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM]
-        data_settings[MODEL_LEN] = 3
+        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, METABO_AGE]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, SEX, DM]
     elif model == "M3":
-        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE]
-        data_settings[MODEL_LEN] = 9
+        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE, METABO_AGE]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, SEX, DM, BMI, LAG_TIME, AGE,EC1, EC2, EC3]
     elif model == "M4":
-        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE, SENSITIVITY_1]
-        data_settings[MODEL_LEN] = 9
+        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE, SENSITIVITY_1, METABO_AGE]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
     elif model == "M5":
-        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE, SENSITIVITY_2]
-        data_settings[MODEL_LEN] = 9
+        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE, METABO_AGE]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
     elif model == "M6":
-        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE]
-        data_settings[MODEL_LEN] = 9
+        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE, METABO_HEALTH]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
     elif model == "M7":
-        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE]
-        data_settings[MODEL_LEN] = 9
+        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE, METABO_HEALTH]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
     
     if (use_age == False) and (AGE in data_settings[DATA_COLS]):
         data_settings[MODEL_LEN] -= 1
@@ -137,9 +140,10 @@ def average(params, sizes):
 
 
     #do averaging
-    parameters = np.zeros(params.shape[0], dtype=float)
-    #print(weights.shape, params.shape, parameters.shape)
-    for j in range(num_clients):
-        parameters += weights[j] * params[:,j]
+    for i in range(num_clients):
+        params.iloc[i] = params.iloc[i] * weights[i]
 
-    return parameters
+
+    global_parameters = params.sum().to_frame().T
+    #print(weights.shape, params.shape, parameters.shape)
+    return global_parameters

@@ -55,45 +55,51 @@ def build_dataframe(cols, PG_URI = None):
 
     return data
 
-def complete_dataframe(df, cols_to_add, use_deltas = False):
+
+def complete_dataframe(df, data_settings):
     info("adding columns based on covariates")
-    try:
-        if (LAG_TIME in cols_to_add) or (AGE in cols_to_add) or (use_deltas == True):
-            #calculate age at blood draw and mri scan
-            cols_for_tmp_df = [DATE_METABOLOMICS, DATE_MRI, BIRTH_YEAR]
-            tmp_df = build_dataframe(cols_for_tmp_df)
-            blood_dates = np.array([date.strftime("%Y") for date in tmp_df[DATE_METABOLOMICS].values]).astype(int)
-            mri_dates = np.array([date.strftime("%Y") for date in tmp_df[DATE_MRI].values]).astype(int)
+    cols_to_add = data_settings[SYNTH_COLS]
+    use_deltas = data_settings[USE_DELTAS]
+    if (LAG_TIME in cols_to_add) or (AGE in cols_to_add) or (use_deltas == True):
+        #calculate age at blood draw and mri scan
+        cols_for_tmp_df = [DATE_METABOLOMICS, DATE_MRI, BIRTH_YEAR]
+        tmp_df = build_dataframe(cols_for_tmp_df)
+        blood_dates = np.array([date.strftime("%Y") for date in tmp_df[DATE_METABOLOMICS].values]).astype(int)
+        mri_dates = np.array([date.strftime("%Y") for date in tmp_df[DATE_MRI].values]).astype(int)
 
-            Age_met = blood_dates - tmp_df[BIRTH_YEAR].values
-            Age_brain = mri_dates- tmp_df[BIRTH_YEAR].values
-            if LAG_TIME in cols_to_add:
-                df[LAG_TIME] = Age_met - Age_brain
-            if (AGE in cols_to_add):
-                df[AGE] = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
-            if (use_deltas == True):
-                age = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
-                df[METABO_AGE] = df[METABO_AGE].values.astype(float) - age
-                df[BRAIN_AGE] = df[BRAIN_AGE].values.astype(float) - age
+        Age_met = blood_dates - tmp_df[BIRTH_YEAR].values
+        Age_brain = mri_dates- tmp_df[BIRTH_YEAR].values
+        if LAG_TIME in cols_to_add:
+            info("adding lag time")
+            df[LAG_TIME] = Age_met - Age_brain
+        if (AGE in cols_to_add):
+            info("adding age")
+            df[AGE] = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
+        if (use_deltas == True):
+            info("calculating deltas")
+            age = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
+            df[METABO_AGE] = df[METABO_AGE].values.astype(float) - age
+            df[BRAIN_AGE] = df[BRAIN_AGE].values.astype(float) - age
 
 
-        if EDUCATION_CATEGORY in cols_to_add:
-            tmp_df = build_dataframe([EDUCATION_CATEGORY])
-            enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
-            mapped_names = [EC1, EC2, EC3]
-            mapped_arr = enc.fit_transform(tmp_df[EDUCATION_CATEGORY].values.reshape(-1, 1))
-            df[mapped_names] = mapped_arr
+    if EDUCATION_CATEGORY in cols_to_add:
+        info("adding education category")
+        tmp_df = build_dataframe([EDUCATION_CATEGORY])
+        enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
+        mapped_names = [EC1, EC2, EC3]
+        mapped_arr = enc.fit_transform(tmp_df[EDUCATION_CATEGORY].values.reshape(-1, 1))
+        mapped_df = pd.DataFrame(data = mapped_arr, columns = mapped_names)
+        df = pd.concat([df, mapped_df], axis = 1, ignore_index=False)
+        data_settings[DATA_COLS].extend(mapped_names)
 
-        if SENSITIVITY_1 in cols_to_add:
-            df = df.loc[abs(df[LAG_TIME]) <= 1].reset_index(drop=True)
-        elif SENSITIVITY_2 in cols_to_add:
-            df = df.loc[abs(df[LAG_TIME]) <= 2].reset_index(drop=True)
+    if SENSITIVITY_1 in cols_to_add:
+        df = df.loc[abs(df[LAG_TIME]) <= 1].reset_index(drop=True)
+    elif SENSITIVITY_2 in cols_to_add:
+        df = df.loc[abs(df[LAG_TIME]) <= 2].reset_index(drop=True)
 
-        info("dataframe finished")
-        return df
-    except Exception as e:
-        info(f'ran into an exception in complete_dataframe: {e}')
-        return e
+    info("dataframe finished")
+    return df
+
 
 
 def create_test_train_split(X, y, seed):
@@ -162,23 +168,31 @@ def make_boxplot(ba, res, bin_width):
 def det_norm_cols(data_settings):
     norm_cat = data_settings[NORM_CAT]
     data_cols = data_settings[DATA_COLS]
-    if ~norm_cat:
+
+    if norm_cat == False:
         norm_cols = [col for col in data_cols if col not in CAT_COLS_VALUES]
     else:
         norm_cols = data_cols
-    norm_cols.append(data_settings[TARGET])
+
+    # bit of a hack, but w/e
+    for col in OPTION_COLS_VALUES:
+        if col in norm_cols:
+            norm_cols.remove(col)
+
+    #norm_cols.append(data_settings[TARGET])
     return norm_cols
 
 
 def normalise(data, data_settings):
+    info("normalising")
     norm_cols = det_norm_cols(data_settings)
     if data_settings[NORMALIZE] == "global":
-        data = (data[norm_cols] - data_settings[GLOBAL_MEAN][norm_cols].squeeze()) / data_settings[GLOBAL_STD][norm_cols].squeeze()
+        data[norm_cols] = (data[norm_cols] - data_settings[GLOBAL_MEAN][norm_cols].squeeze()) / data_settings[GLOBAL_STD][norm_cols].squeeze()
     elif data_settings[NORMALIZE] == "local":
-        data = (data[norm_cols] - data[norm_cols].mean())/data[norm_cols].std(ddof=0)
+        data[norm_cols] = (data[norm_cols] - data[norm_cols].mean())/data[norm_cols].std(ddof=0)
     elif data_settings[NORMALIZE] == "none" :
         data = data
     else:
         raise(ValueError(f"unknown value for 'normalize': {data_settings[NORMALIZE]}"))
-    
+    info("normalising complete")
     return data
