@@ -142,7 +142,8 @@ def RPC_fit_round(db_client, coefs, intercepts, data_cols, extra_cols, lr, seed,
     last_bin_idx = np.where(y> bin_start[-1])[0]
     if len(last_bin_idx) < 2:
         #info("too little values for boxplot, skipping")
-        binned_res.append([])
+        bi
+        nned_res.append([])
     else:
         binned_res.append(list(res[last_bin_idx]))
 

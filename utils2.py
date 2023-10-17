@@ -19,14 +19,26 @@ def generate_v6_info(client, image_name, ids, collab_id):
     v6_info[COLLAB_ID] = collab_id
     return v6_info
 
-def generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normalize_cat):
+def generate_classif_settings(lr, seed, coefs, model_len):
+    classif_settings = {}
+    classif_settings[LR] = lr
+    classif_settings[SEED] = seed
+
+    # generate initial model params
+    s = np.random.default_rng(seed=seed) # we use the same seed as for the test/train split
+    coefs = s.normal(0, 1, model_len)
+    classif_settings[COEF] = np.copy(coefs)
+    return classif_settings
+
+def generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normalize_cat, bin_width = 0.2):
     data_settings = {}
     data_settings[NORMALIZE] = normalize
     data_settings[USE_AGE] = use_age
     data_settings[USE_DM] = use_dm
     data_settings[USE_DELTAS] = use_deltas
-    data_settings[NORMALIZE_CAT] = normalize_cat
-    
+    data_settings[NORM_CAT] = normalize_cat
+    data_settings[BIN_WIDTH_BOXPLOT] = bin_width
+
     if (model == "M6") or  (model == "M7"):
         data_settings[TARGET] = METABO_HEALTH
     else:
@@ -34,31 +46,35 @@ def generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normal
 
     if model == "M1":
         data_settings[DATA_COLS] = [BRAIN_AGE]
+        data_settings[MODEL_LEN] = 1
     elif model == "M2":
         data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM]
+        data_settings[MODEL_LEN] = 3
     elif model == "M3":
         data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE]
+        data_settings[MODEL_LEN] = 9
     elif model == "M4":
         data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE, SENSITIVITY_1]
+        data_settings[MODEL_LEN] = 9
     elif model == "M5":
         data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE, SENSITIVITY_2]
+        data_settings[MODEL_LEN] = 9
     elif model == "M6":
         data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE]
+        data_settings[MODEL_LEN] = 9
     elif model == "M7":
         data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE]
+        data_settings[MODEL_LEN] = 9
     
+    if (use_age == False) and (AGE in data_settings[DATA_COLS]):
+        data_settings[MODEL_LEN] -= 1
+    
+    if (use_dm == False) and (DM in data_settings[DATA_COLS]):
+        data_settings[MODEL_LEN] -= 1
+
     return split_direct_synth(data_settings)
 
- #determine which columns to normalize based on the data columns and normalization settings 
-def det_norm_cols(data_settings):
-    norm_cat = data_settings[NORM_CAT]
-    data_cols = data_settings[DATA_COLS]
-    if ~norm_cat:
-        norm_cols = [col for col in data_cols if col not in CAT_COLS_VALUES]
-    else:
-        norm_cols = data_cols
-    norm_cols.append(data_settings[TARGET])
-    return norm_cols
+
 
 # split based on whether they are already in the db or not
 def split_direct_synth(data_settings):
@@ -108,3 +124,22 @@ def post_vantage_task(v6_info: dict, method_name: str, kwargs: dict):
         collaboration_id = v6_info[COLLAB_ID]
     )
     return task
+
+# simple fedAvg implementation
+def average(params, sizes):
+    
+    #print(params.shape)
+    #create size-based weights
+    num_clients = sizes.size
+
+    total_size = np.sum(sizes) 
+    weights = sizes / total_size
+
+
+    #do averaging
+    parameters = np.zeros(params.shape[0], dtype=float)
+    #print(weights.shape, params.shape, parameters.shape)
+    for j in range(num_clients):
+        parameters += weights[j] * params[:,j]
+
+    return parameters

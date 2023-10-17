@@ -5,19 +5,62 @@ import os
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder
-
+from sklearn.linear_model import SGDRegressor
 import sys
 import os
 sys.path.insert(1, os.path.join(sys.path[0], '../v6_LinReg_py'))
-
+import math
 from .constants import *
+from .local import build_dataframe, complete_dataframe, create_test_train_split, make_boxplot, normalise
 
+
+def RPC_train_round(db_client, data_settings, classif_settings):
+    info("starting train_round")
+    data_tmp = build_dataframe(data_settings[DIRECT_COLS])
+    data = complete_dataframe(data_tmp, data_settings[SYNTH_COLS])
+
+    data = normalise(data, data_settings)
+    X_full = data.drop(data_settings[TARGET])
+    y_full = data[data_settings[TARGET]]
+
+    X_train, X_test, y_train, y_test = create_test_train_split(X_full, y_full, classif_settings[SEED])
+
+    model = SGDRegressor(loss="squared_error", penalty=None, max_iter = 1, eta0=classif_settings[LR], fit_intercept=False)
+    model.coef_ = classif_settings[COEF]
+
+    test_pred = model.predict(X_test)
+    train_pred = model.predict(X_train)
+    full_pred = model.predict(X_train)
+
+
+    train_mae = np.mean(abs(train_pred - y_train))
+    test_mae = np.mean(abs(test_pred - y_test))
+    test_loss = np.mean((model.predict(X_test) - y_test) **2)
+
+    model.partial_fit(X_train, y_train[:,0])
+    return_params = pd.DataFrame(data = model.coef_, columns = model.feature_names_in_)
+
+    residual = full_pred - y_full[:,0]
+    fig, ax, bp, bin_start = make_boxplot(X_full[BRAIN_AGE], residual, data_settings[BIN_WIDTH_BOXPLOT])
+    return {
+        LOCAL_COEF: return_params,
+        TRAIN_MAE : train_mae,
+        TEST_MAE : test_mae,
+        TEST_LOSS : test_loss,
+        LOCAL_TRAIN_SIZE : y_train.shape[0],
+        BP: {
+            "fig" : fig,
+            "ax" : ax,
+            "bp" : bp,
+            "bin_start" : bin_start
+        }
+    }
 
 
 def RPC_get_avg(db_client, data_settings):
     data_tmp = build_dataframe(data_settings[DIRECT_COLS])
 
-    data = complete_dataframe(data_tmp, data_settings[SYNTH_COLS],data_settings[USE_DELTAS])
+    data = complete_dataframe(data_tmp, data_settings[SYNTH_COLS], data_settings[USE_DELTAS])
 
     return {"averages" : data.mean().to_frame().T,
             "size" : data.shape[0]
@@ -29,106 +72,15 @@ def RPC_get_std(db_client, data_settings: dict, global_mean: pd.DataFrame):
 
     data = complete_dataframe(data_tmp, data_settings[SYNTH_COLS],data_settings[USE_DELTAS])
     
-    partial_std = ((data.astype(float) - global_mean)**2).sum(axis = 1)
+    tmp1 = data.astype(float) - global_mean
+    tmp2 = tmp1.pow(2)
+    tmp3 = tmp2.sum()
+
+    partial_std = ((data.astype(float) - global_mean.squeeze())**2).sum(axis = 0)
+
     return {
         "std" : partial_std.to_frame().T,
+        #"std" : tmp3.to_frame().T,
         "size" : data.shape[0]
     }
 
-def RPC_get_avg_std(db_client, data_settings: dict, sel):
-    data_tmp = build_dataframe(data_settings[DIRECT_COLS])
-
-    data = complete_dataframe(data_tmp, data_settings[SYNTH_COLS],data_settings[USE_DELTAS])
-    
-    
-    if sel == "mean":
-        out = data.mean().to_frame().T
-    elif sel == "std":
-        out = data.std().to_frame().T
-    else:
-        raise(ValueError(f"undefined value for sel: {sel}"))
-
-
-    return {sel : out,
-            "size" : data.shape[0]
-            }
-
-
-def build_dataframe(cols, PG_URI = None):
-
-    info(f'building dataframe with columns: {cols}')
-    data_df = pd.DataFrame()
-
-    if PG_URI == None:
-            PG_URI = 'postgresql://{}:{}@{}:{}'.format(
-                os.getenv("PGUSER"),
-                os.getenv("PGPASSWORD"),
-                os.getenv("PGHOST"),
-                os.getenv("PGPORT"))
-    info("connecting to PG DB:" + str(PG_URI))
-    try:
-        connection = psycopg2.connect(PG_URI)
-        cursor = connection.cursor()
-        info("connected to PG database. building dataframe..")
-
-        #incrementally build dataframe
-        for col in cols:
-            data_pg = cursor.execute("SELECT {} FROM ncdc".format(col))
-            column_data = cursor.fetchall()
-
-            #fetchall returns a tuple for some reason, so we have to do this
-            data_df[col] = [column_val[0] for column_val in column_data]
-        
-        # also add id to the initial dataframe, so we can sort using that
-        data_pg = cursor.execute("SELECT {} FROM ncdc".format(ID))
-        column_data = cursor.fetchall()
-        data_df[ID] = [column_val[0] for column_val in column_data]
-
-    except psycopg2.Error as e:
-        info(f"psycopg2 error: {e}")
-        return e
-    
-    # merge rows from same patients (but different visits)
-    data_df = data_df.groupby([ID]).agg({col : 'first' for col in cols}).reset_index()
-
-    data = data_df[cols].dropna()
-    info("base dataframe built.")
-
-    return data
-
-def complete_dataframe(df, cols_to_add, use_deltas = False):
-    info("adding columns based on covariates")
-
-    if (LAG_TIME in cols_to_add) or (AGE in cols_to_add) or (use_deltas == True):
-        #calculate age at blood draw and mri scan
-        cols_for_tmp_df = [DATE_METABOLOMICS, DATE_MRI, BIRTH_YEAR]
-        tmp_df = build_dataframe(cols_for_tmp_df)
-        blood_dates = np.array([date.strftime("%Y") for date in tmp_df[DATE_METABOLOMICS].values]).astype(int)
-        mri_dates = np.array([date.strftime("%Y") for date in tmp_df[DATE_MRI].values]).astype(int)
-
-        Age_met = blood_dates - tmp_df[BIRTH_YEAR].values
-        Age_brain = mri_dates- tmp_df[BIRTH_YEAR].values
-        if LAG_TIME in cols_to_add:
-            df[LAG_TIME] = Age_met - Age_brain
-        if (AGE in cols_to_add):
-            df[AGE] = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
-        if (use_deltas == True):
-            age = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
-            df[METABO_AGE] = df[METABO_AGE].values.astype(float) - age
-            df[BRAIN_AGE] = df[BRAIN_AGE].values.astype(float) - age
-
-
-    if EDUCATION_CATEGORY in cols_to_add:
-        tmp_df = build_dataframe([EDUCATION_CATEGORY])
-        enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
-        mapped_names = [EC1, EC2, EC3]
-        mapped_arr = enc.fit_transform(tmp_df[EDUCATION_CATEGORY].values.reshape(-1, 1))
-        df[mapped_names] = mapped_arr
-
-    if SENSITIVITY_1 in cols_to_add:
-        df = df.loc[abs(df[LAG_TIME]) <= 1].reset_index(drop=True)
-    elif SENSITIVITY_2 in cols_to_add:
-        df = df.loc[abs(df[LAG_TIME]) <= 2].reset_index(drop=True)
-
-    info("dataframe finished")
-    return df

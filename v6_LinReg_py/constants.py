@@ -97,18 +97,31 @@ NORMALIZE = "normalize"
 USE_AGE = "use_age"
 USE_DM = "use_dm"
 USE_DELTAS = "use_deltas"
-NORMALIZE_CAT = "normalize_cat"
-
 NORM_CAT = "norm_cat"
 TARGET = "target"
 DATA_COLS = "data_cols"
 DIRECT_COLS = "direct_cols" # the columns that are directly available in the postgres DB
 SYNTH_COLS = "synth_cols" # the columns that have to be synthesized (like lag-time)
-
-
-
+MODEL_LEN = "model_len"
+BIN_WIDTH_BOXPLOT = "bw_boxplot"
+GLOBAL_MEAN = "global_mean"
+GLOBAL_STD = "global_std"
+ 
 ## v6_info ##
 CLIENT = "client"
 IMAGE_NAME = "image_name"
 ORG_IDS = "org_ids"
 COLLAB_ID = "collab_id"
+
+# classifier settings keys
+LR = "lr"
+SEED = "seed"
+COEF = "coef"
+
+# fit round return keys
+LOCAL_COEF = "local_coef"
+TRAIN_MAE = "train_mae"
+TEST_MAE = "test_mae"
+TEST_LOSS = "test_loss"
+LOCAL_TRAIN_SIZE = "local_train_size"
+BP = "boxplot"
