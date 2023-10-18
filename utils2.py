@@ -68,12 +68,6 @@ def generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normal
     elif model == "M7":
         data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE, METABO_HEALTH]
         data_settings[MODEL_COLS] = [BRAIN_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
-    
-    if (use_age == False) and (AGE in data_settings[DATA_COLS]):
-        data_settings[MODEL_LEN] -= 1
-    
-    if (use_dm == False) and (DM in data_settings[DATA_COLS]):
-        data_settings[MODEL_LEN] -= 1
 
     return split_direct_synth(data_settings)
 
