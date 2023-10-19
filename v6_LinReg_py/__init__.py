@@ -146,3 +146,27 @@ def RPC_calc_ABC(db_client, data_settings: dict):
         "C" : C, 
         SIZE : X.shape[0]
     }
+
+def RPC_hase_mae(db_client, data_settings: dict, classif_settings: dict):
+    data_tmp = build_dataframe(data_settings[DIRECT_COLS])
+    data = complete_dataframe(data_tmp, data_settings)
+    data = normalise(data.astype(float), data_settings)
+    X = data.drop(columns = data_settings[TARGET]).values
+    y = data[data_settings[TARGET]].values
+
+    model = SGDRegressor(loss="squared_error", penalty=None, max_iter = 1, eta0=0, fit_intercept=False)
+    
+    model.coef_ = np.copy(classif_settings[COEF])
+    model.intercept_ = [0]
+    global_pred = model.predict(X)
+    mae = np.mean(abs(y - global_pred))
+
+    return {
+        "mae" : mae
+    }
+
+def model_mae(coef, X):
+
+
+
+
