@@ -165,8 +165,3 @@ def RPC_hase_mae(db_client, data_settings: dict, classif_settings: dict):
         "mae" : mae
     }
 
-def model_mae(coef, X):
-
-
-
-
