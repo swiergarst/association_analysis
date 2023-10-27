@@ -14,10 +14,10 @@ import copy
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 sys.path.insert(1, os.path.join(sys.path[0], '../V6_implementation'))
 
-from .utils2 import generate_v6_info, generate_data_settings, generate_classif_settings, post_vantage_task, average, get_results
-from .workflows import normalize_workflow, se_workflow
+from utils2 import generate_v6_info, generate_data_settings, generate_classif_settings, post_vantage_task, average, get_results
+from workflows import normalize_workflow, se_workflow
 
-from .v6_LinReg_py.constants import *
+from v6_LinReg_py.constants import *
 
 ## vantage6 settings ##
 client = Client("http://localhost", 5000, "/api")
@@ -25,7 +25,7 @@ client.authenticate("researcher", "password")
 client.setup_encryption(None)
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 
-image_name = "sgarst/association-analysis:1.7.0"
+image_name = "sgarst/association-analysis:1.7.1"
 v6_info = generate_v6_info(client, image_name, ids, 1)
 
 v6_test_info = copy.deepcopy(v6_info)

@@ -1,7 +1,7 @@
 from V6_implementation.v6_LinReg_py.constants import *
 import numpy as np
 import pandas as pd
-from .utils2 import get_results, post_vantage_task
+from utils2 import get_results, post_vantage_task
 import copy
 def mean_workflow(v6_info, data_settings):
     # this makes the client-side code a little more flexible
