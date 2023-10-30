@@ -32,47 +32,53 @@ def build_dataframe(cols, PG_URI = None):
 
         #incrementally build dataframe
         for col in cols:
+            # info(f"adding {col}")
             data_pg = cursor.execute("SELECT {} FROM ncdc".format(col))
             column_data = cursor.fetchall()
 
             #fetchall returns a tuple for some reason, so we have to do this
             data_df[col] = [column_val[0] for column_val in column_data]
         
-        # also add id to the initial dataframe, so we can sort using that
-        data_pg = cursor.execute("SELECT {} FROM ncdc".format(ID))
-        column_data = cursor.fetchall()
-        data_df[ID] = [column_val[0] for column_val in column_data]
+        info("done adding columns")
+        # # also add id to the initial dataframe, so we can sort using that
+        # data_pg = cursor.execute("SELECT {} FROM ncdc".format(ID))
+        # column_data = cursor.fetchall()
+        # data_df[ID] = [column_val[0] for column_val in column_data]
 
     except psycopg2.Error as e:
         info(f"psycopg2 error: {e}")
         return e
     
+    info("merging based on id")
     # merge rows from same patients (but different visits)
-    data_df = data_df.groupby([ID]).agg({col : 'first' for col in cols}).reset_index()
+    data_df = data_df.groupby([ID]).agg({col : 'first' for col in cols if col != ID}).reset_index()
 
-    data = data_df[cols].dropna()
     info("base dataframe built.")
+    data_df = data_df.dropna()
+    return data_df
 
-    return data
 
+def complete_dataframe(data_settings):
+    base_df = build_dataframe(data_settings[ALL_COLS])
 
-def complete_dataframe(df, data_settings):
+    df = base_df[data_settings[DATA_COLS]].copy()
     info("adding columns based on covariates")
-    cols_to_add = data_settings[SYNTH_COLS]
+    #cols_to_add = data_settings[SYNTH_COLS]
+    model_cols = data_settings[MODEL_COLS]
     use_deltas = data_settings[USE_DELTAS]
-    if (LAG_TIME in cols_to_add) or (AGE in cols_to_add) or (use_deltas == True):
+    if (LAG_TIME in model_cols) or (AGE in model_cols) or (use_deltas == True):
         #calculate age at blood draw and mri scan
-        cols_for_tmp_df = [DATE_METABOLOMICS, DATE_MRI, BIRTH_YEAR]
-        tmp_df = build_dataframe(cols_for_tmp_df)
-        blood_dates = np.array([date.strftime("%Y") for date in tmp_df[DATE_METABOLOMICS].values]).astype(int)
-        mri_dates = np.array([date.strftime("%Y") for date in tmp_df[DATE_MRI].values]).astype(int)
+        #cols_for_tmp_df = [DATE_METABOLOMICS, DATE_MRI, BIRTH_YEAR]
+        #tmp_df = build_dataframe(cols_for_tmp_df)
+        blood_dates = np.array([date.strftime("%Y") for date in df[DATE_METABOLOMICS].values]).astype(int)
+        mri_dates = np.array([date.strftime("%Y") for date in df[DATE_MRI].values]).astype(int)
 
-        Age_met = blood_dates - tmp_df[BIRTH_YEAR].values
-        Age_brain = mri_dates- tmp_df[BIRTH_YEAR].values
-        if LAG_TIME in cols_to_add:
+        Age_met = blood_dates - df[BIRTH_YEAR].values
+        Age_brain = mri_dates- df[BIRTH_YEAR].values
+        if LAG_TIME in model_cols:
             info("adding lag time")
             df[LAG_TIME] = Age_met - Age_brain
-        if (AGE in cols_to_add):
+        if (AGE in model_cols):
             info("adding age")
             df[AGE] = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
         if (use_deltas == True):
@@ -81,24 +87,29 @@ def complete_dataframe(df, data_settings):
             df[METABO_AGE] = df[METABO_AGE].values.astype(float) - age
             df[BRAIN_AGE] = df[BRAIN_AGE].values.astype(float) - age
 
-
-    if EDUCATION_CATEGORY in cols_to_add:
+    if EC1 in model_cols:
         info("adding education category")
-        tmp_df = build_dataframe([EDUCATION_CATEGORY])
+        # tmp_df = build_dataframe([EDUCATION_CATEGORY])
         enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
         mapped_names = [EC1, EC2, EC3]
-        mapped_arr = enc.fit_transform(tmp_df[EDUCATION_CATEGORY].values.reshape(-1, 1))
+        mapped_arr = enc.fit_transform(df[EDUCATION_CATEGORY].values.reshape(-1, 1))
         mapped_df = pd.DataFrame(data = mapped_arr, columns = mapped_names)
-        df = pd.concat([df, mapped_df], axis = 1, ignore_index=False)
-        data_settings[DATA_COLS].extend(mapped_names)
 
-    if SENSITIVITY_1 in cols_to_add:
+        df = pd.concat([df.reset_index(drop=True), mapped_df.reset_index(drop=True)], axis = 1, ignore_index=False)
+        # data_settings[DATA_COLS].extend(mapped_names)
+    if data_settings[SENS] == 1:
+        info("selecting lag time < 1 year")
         df = df.loc[abs(df[LAG_TIME]) <= 1].reset_index(drop=True)
-    elif SENSITIVITY_2 in cols_to_add:
+    elif data_settings[SENS] == 2:
+        info("selecting lag time < 2 years")
         df = df.loc[abs(df[LAG_TIME]) <= 2].reset_index(drop=True)
 
+    info("bla")
+    info(f'df size: {df.shape}')
+    # data = data_df[cols].dropna()
+    data_df = df[data_settings[MODEL_COLS]]
     info("dataframe finished")
-    return df
+    return data_df
 
 
 
@@ -167,12 +178,12 @@ def make_boxplot(ba, res, bin_width):
 #determine which columns to normalize based on the data columns and normalization settings 
 def det_norm_cols(data_settings):
     norm_cat = data_settings[NORM_CAT]
-    data_cols = data_settings[DATA_COLS]
+    model_cols = data_settings[MODEL_COLS]
 
     if norm_cat == False:
-        norm_cols = [col for col in data_cols if col not in CAT_COLS_VALUES]
+        norm_cols = [col for col in model_cols if col not in CAT_COLS_VALUES]
     else:
-        norm_cols = data_cols
+        norm_cols = model_cols
 
     # bit of a hack, but w/e
     for col in OPTION_COLS_VALUES:
@@ -189,7 +200,9 @@ def normalise(data, data_settings):
     if data_settings[NORMALIZE] == "global":
         data[norm_cols] = (data[norm_cols] - data_settings[GLOBAL_MEAN][norm_cols].squeeze()) / data_settings[GLOBAL_STD][norm_cols].squeeze()
     elif data_settings[NORMALIZE] == "local":
-        data[norm_cols] = (data[norm_cols] - data[norm_cols].mean())/data[norm_cols].std(ddof=0)
+        std = data[norm_cols].std(ddof=0).squeeze().T
+        std = std.replace(to_replace = 0, value = 1)
+        data[norm_cols] = (data[norm_cols] - data[norm_cols].mean())/std
     elif data_settings[NORMALIZE] == "none" :
         data = data
     else:

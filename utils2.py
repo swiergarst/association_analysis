@@ -19,7 +19,9 @@ def generate_v6_info(client, image_name, ids, collab_id):
     v6_info[COLLAB_ID] = collab_id
     return v6_info
 
-def generate_classif_settings(lr: float, seed: int, coef_names: list):
+def generate_classif_settings(lr: float, seed: int, data_settings: dict):
+    coef_names = data_settings[MODEL_COLS]
+    coef_names.remove(data_settings[TARGET])
     classif_settings = {}
     classif_settings[LR] = lr
     classif_settings[SEED] = seed
@@ -41,6 +43,8 @@ def generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normal
     data_settings[USE_DELTAS] = use_deltas
     data_settings[NORM_CAT] = normalize_cat
     data_settings[BIN_WIDTH_BOXPLOT] = bin_width
+    data_settings[SENS] = 0
+    data_settings[ALL_COLS] = ALL_EXISTING_COLS_VALUES
 
     if (model == "M6") or  (model == "M7"):
         data_settings[TARGET] = METABO_HEALTH
@@ -48,28 +52,61 @@ def generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normal
         data_settings[TARGET] = METABO_AGE
 
     if model == "M1":
-        data_settings[DATA_COLS] = [BRAIN_AGE, METABO_AGE]
-        data_settings[MODEL_COLS] = [BRAIN_AGE]
+        # data_settings[DATA_COLS] = [BRAIN_AGE, METABO_AGE]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE]
     elif model == "M2":
-        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, METABO_AGE]
-        data_settings[MODEL_COLS] = [BRAIN_AGE, SEX, DM]
+        # data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, METABO_AGE]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, SEX, DM]
     elif model == "M3":
-        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE, METABO_AGE]
-        data_settings[MODEL_COLS] = [BRAIN_AGE, SEX, DM, BMI, LAG_TIME, AGE,EC1, EC2, EC3]
+        # data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, METABO_AGE]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE ,SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
     elif model == "M4":
-        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE, SENSITIVITY_1, METABO_AGE]
-        data_settings[MODEL_COLS] = [BRAIN_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
+        # data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, SENSITIVITY_1, METABO_AGE]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
+        data_settings[SENS] = 1
     elif model == "M5":
-        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE, METABO_AGE]
-        data_settings[MODEL_COLS] = [BRAIN_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
+        # data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, METABO_AGE]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
+        data_settings[SENS] = 2
     elif model == "M6":
-        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE, METABO_HEALTH]
-        data_settings[MODEL_COLS] = [BRAIN_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
+        # data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, METABO_HEALTH]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_HEALTH, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
     elif model == "M7":
-        data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, AGE, METABO_HEALTH]
-        data_settings[MODEL_COLS] = [BRAIN_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
+        # data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, METABO_HEALTH]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_HEALTH, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
 
-    return split_direct_synth(data_settings)
+    # this shouldn't be necessary once we change the system to be more grid-search-friendly
+    if use_age == False:
+        if AGE in data_settings[MODEL_COLS]:
+            data_settings[MODEL_COLS].remove(AGE)
+    if use_dm == False:
+        if DM in data_settings[MODEL_COLS]:
+            data_settings[MODEL_COLS].remove(DM)
+
+
+
+    data_settings[DATA_COLS] = infer_data_cols(data_settings)
+    return data_settings
+
+# see which data columns we need to get based on which model columns we have
+def infer_data_cols(data_settings: dict):
+    #easiest way to get a start
+    data_cols = data_settings[MODEL_COLS].copy()
+    if (AGE in data_settings[MODEL_COLS]) or (LAG_TIME in data_settings[MODEL_COLS]) or (data_settings[USE_DELTAS] == True):
+        data_cols.append(DATE_MRI)
+        data_cols.append(DATE_METABOLOMICS)
+        data_cols.append(BIRTH_YEAR)
+        if AGE in data_cols:
+            data_cols.remove(AGE)
+        if LAG_TIME in data_cols:
+            data_cols.remove(LAG_TIME)
+    
+    if EC1 in data_settings[MODEL_COLS]:
+        data_cols.append(EDUCATION_CATEGORY)
+        data_cols.remove(EC1)
+        data_cols.remove(EC2)
+        data_cols.remove(EC3)
+    return data_cols
 
 
 
@@ -141,3 +178,7 @@ def average(params, sizes):
     global_parameters = params.sum().to_frame().T
     #print(weights.shape, params.shape, parameters.shape)
     return global_parameters
+
+
+def hase_workflow():
+    pass

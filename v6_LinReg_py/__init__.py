@@ -16,9 +16,9 @@ from .local import build_dataframe, complete_dataframe, create_test_train_split,
 
 def RPC_train_round(db_client, data_settings, classif_settings):
     info("starting train_round")
-    data_tmp = build_dataframe(data_settings[DIRECT_COLS])
-    data = complete_dataframe(data_tmp, data_settings)
-    info(str(data.columns))
+    data = complete_dataframe(data_settings)
+
+    # info(str(data.columns))
     data = normalise(data.astype(float), data_settings)
 
     y_full = data[data_settings[TARGET]]
@@ -71,19 +71,16 @@ def RPC_train_round(db_client, data_settings, classif_settings):
 
 
 def RPC_get_avg(db_client, data_settings):
-    data_tmp = build_dataframe(data_settings[DIRECT_COLS])
+    data = complete_dataframe(data_settings)
 
-    data = complete_dataframe(data_tmp, data_settings)
-
+    # info(str(data.tail())
     return {"averages" : data.mean().to_frame().T.astype(float),
             "size" : data.shape[0]
             }
 
 
 def RPC_get_std(db_client, data_settings: dict, global_mean: pd.DataFrame):
-    data_tmp = build_dataframe(data_settings[DIRECT_COLS])
-
-    data = complete_dataframe(data_tmp, data_settings)
+    data = complete_dataframe(data_settings)
 
     #info(str(data.columns))
     partial_std = ((data.astype(float) - global_mean.astype(float).squeeze())**2).sum(axis = 0)
@@ -95,9 +92,7 @@ def RPC_get_std(db_client, data_settings: dict, global_mean: pd.DataFrame):
     }
 
 def RPC_calc_se(db_client, data_settings: dict, classif_settings: dict):
-    data_tmp = build_dataframe(data_settings[DIRECT_COLS])
-
-    data = complete_dataframe(data_tmp, data_settings)
+    data = complete_dataframe(data_settings)
 
     data = normalise(data.astype(float), data_settings)
     X_full = data.drop(columns = data_settings[TARGET])
@@ -129,8 +124,8 @@ def RPC_calc_se(db_client, data_settings: dict, classif_settings: dict):
     }
 
 def RPC_calc_ABC(db_client, data_settings: dict): 
-    data_tmp = build_dataframe(data_settings[DIRECT_COLS])
-    data = complete_dataframe(data_tmp, data_settings)
+    data = complete_dataframe(data_settings)
+
     data = normalise(data.astype(float), data_settings)
 
     X = data.drop(columns = data_settings[TARGET]).values
@@ -148,8 +143,8 @@ def RPC_calc_ABC(db_client, data_settings: dict):
     }
 
 def RPC_hase_mae(db_client, data_settings: dict, classif_settings: dict):
-    data_tmp = build_dataframe(data_settings[DIRECT_COLS])
-    data = complete_dataframe(data_tmp, data_settings)
+    data = complete_dataframe(data_settings)
+
     data = normalise(data.astype(float), data_settings)
     X = data.drop(columns = data_settings[TARGET]).values
     y = data[data_settings[TARGET]].values

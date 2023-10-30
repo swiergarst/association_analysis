@@ -99,6 +99,7 @@ USE_DM = "use_dm"
 USE_DELTAS = "use_deltas"
 NORM_CAT = "norm_cat"
 TARGET = "target"
+ALL_COLS = "all_cols"
 DATA_COLS = "data_cols"
 DIRECT_COLS = "direct_cols" # the columns that are directly available in the postgres DB
 SYNTH_COLS = "synth_cols" # the columns that have to be synthesized (like lag-time)
@@ -107,6 +108,8 @@ BIN_WIDTH_BOXPLOT = "bw_boxplot"
 GLOBAL_MEAN = "global_mean"
 GLOBAL_STD = "global_std"
 MODEL_COLS = "model_cols"
+SENS = "sensitivity" # whether to run sensitivity analysis on lag time
+
 ## v6_info ##
 CLIENT = "client"
 IMAGE_NAME = "image_name"

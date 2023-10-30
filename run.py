@@ -14,17 +14,17 @@ import copy
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 sys.path.insert(1, os.path.join(sys.path[0], '../V6_implementation'))
 
-from utils2 import generate_v6_info, generate_data_settings, generate_classif_settings, post_vantage_task, average, get_results
-from workflows import normalize_workflow, se_workflow
+from V6_implementation.utils2 import generate_v6_info, generate_data_settings, generate_classif_settings, post_vantage_task, average, get_results
+from V6_implementation.workflows import normalize_workflow, se_workflow
 
-from v6_LinReg_py.constants import *
+from V6_implementation.v6_LinReg_py.constants import *
 
 ## vantage6 settings ##
 client = Client("http://localhost", 5000, "/api")
 client.authenticate("researcher", "password")
 client.setup_encryption(None)
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
-
+# ids = [3]
 image_name = "sgarst/association-analysis:1.7.1"
 v6_info = generate_v6_info(client, image_name, ids, 1)
 
@@ -35,13 +35,12 @@ v6_test_info['image_name'] = "sgarst/association-analysis:test"
 ## data settings ##
 model = "M3" # options : M1, M2, M3, M4, M5, M6, M7
 normalize = "global" # options: global, local, none
-use_age = True # whether to use age as a covariate
+use_age = False # whether to use age as a covariate
 use_dm = True # whether to use dm as a covariate
 use_deltas = False # whether to look at delta metabo/brainage
 normalize_cat = False # whether to normalize categorical variables
 bin_width = 0.2
 data_settings = generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normalize_cat, bin_width)
-
 
 
 ## regression settings ##
@@ -51,6 +50,7 @@ lr = 0.005
 seed_offset = 0
 
 # other settings
+
 write_file = True
 
 
@@ -61,7 +61,7 @@ def run(v6_info, data_settings, n_runs, n_rounds):
 
     for run in range(n_runs):
         seed = run + seed_offset
-        classifier_settings = generate_classif_settings(lr, seed, data_settings[MODEL_COLS])
+        classifier_settings = generate_classif_settings(lr, seed, copy.deepcopy(data_settings))
         task_kwargs = {
                 "data_settings" : data_settings,
                 "classif_settings" : classifier_settings}
