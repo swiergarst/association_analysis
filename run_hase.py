@@ -41,10 +41,6 @@ data_settings = generate_data_settings(model, normalize, use_age, use_dm, use_de
 
 write_file = True
 
-
-local_train_maes = np.zeros((n_runs, n_rounds, len(v6_info[ORG_IDS])))
-local_test_maes = np.zeros_like(local_train_maes)
-
 def run_hase(v6_info, data_settings):
 
 
@@ -63,10 +59,15 @@ def run_hase(v6_info, data_settings):
     Cs = np.array([ABC_result['C'] for ABC_result in ABC_results])
     sizes = np.array([ABC_result[SIZE] for ABC_result in ABC_results])
 
+    global_size = np.sum(sizes)
+
+
     full_A = np.sum(As, axis = 0)
     full_B = np.sum(Bs, axis = 0)
     full_C = np.sum(Cs, axis = 0)
 
+    A_inv = np.linalg.pinv(full_A)
+    A_inv_diag = np.diag(A_inv)
     beta_hat = np.matmul(A_inv, full_B)
 
     se_part = np.matmul(full_B.T,  A_inv)
@@ -90,7 +91,7 @@ def run_hase(v6_info, data_settings):
     final_results = {
         "global_betas" : beta_hat.tolist(), # ideally this is a pd dataframe
         "coef_names" : data_settings[MODEL_COLS].tolist(),
-        "mae" : mae.tolist()
+        "mae" : mae.tolist(),
         "standard_error" : se.tolist(),
         #"se_columns" : se.columns.tolist(),
         "sizes" : sizes.tolist()       
@@ -100,7 +101,7 @@ def run_hase(v6_info, data_settings):
 
 if __name__ == "__main__":
 
-    final_results  = run(v6_info, copy.deepcopy(data_settings))
+    final_results  = run_hase(v6_info, copy.deepcopy(data_settings))
 
     if write_file:
         date = datetime.datetime.now()
