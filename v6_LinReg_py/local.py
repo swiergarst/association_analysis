@@ -106,6 +106,7 @@ def complete_dataframe(data_settings):
 
     info("bla")
     info(f'df size: {df.shape}')
+    info(f'df columns: {df.columns}')
     # data = data_df[cols].dropna()
     data_df = df[data_settings[MODEL_COLS]]
     info("dataframe finished")

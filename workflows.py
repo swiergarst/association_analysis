@@ -22,7 +22,7 @@ def mean_workflow(v6_info, data_settings):
     global_mean_arr = np.array([np.sum([(mean * size) for mean, size in zip(full_df.values, sizes)], axis = 0) / np.sum(sizes)])
     global_df = pd.DataFrame(data=global_mean_arr, columns = full_df.columns)
 
-    return(global_df)
+    return(global_df, full_df)
 
 
 def std_workflow(v6_info, data_settings, global_mean):
@@ -38,7 +38,7 @@ def std_workflow(v6_info, data_settings, global_mean):
     return global_std
 
 def normalize_workflow(v6_info, data_settings):
-    global_mean = mean_workflow(v6_info, copy.deepcopy(data_settings)) # still required for standard error calculation (probably)
+    global_mean, _ = mean_workflow(v6_info, copy.deepcopy(data_settings)) # still required for standard error calculation (probably)
 
     if data_settings[NORMALIZE] == "global":
         #global_mean = mean_workflow(v6_info, data_settings)

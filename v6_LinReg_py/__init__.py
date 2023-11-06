@@ -127,6 +127,7 @@ def RPC_calc_ABC(db_client, data_settings: dict):
     data = complete_dataframe(data_settings)
 
     data = normalise(data.astype(float), data_settings)
+    info(f'data columns: {data.columns}')
 
     X = data.drop(columns = data_settings[TARGET]).values
     y = data[data_settings[TARGET]].values

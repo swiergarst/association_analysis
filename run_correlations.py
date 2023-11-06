@@ -14,25 +14,28 @@ client.authenticate("researcher", "password")
 client.setup_encryption(None)
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 # ids = [3]
-image_name = "sgarst/association-analysis:1.7.1"
+image_name = "sgarst/association-analysis:1.8"
 v6_info = generate_v6_info(client, image_name, ids, 1)
 
-all_considered_columns = [METABO_AGE, BRAIN_AGE, AGE, LAG_TIME, SEX, DM, EDUCATION_CATEGORY, BMI]
-write_file = True
+all_considered_columns = [DM, METABO_AGE, BRAIN_AGE, AGE, LAG_TIME, SEX, EDUCATION_CATEGORY, BMI]
+write_file = False
 
 
 # generate initial data settings (most of these will be overwritten/not used)
-data_settings = generate_data_settings("M1", normalize = "none", use_age = True, use_dm = True, use_deltas = True, normalize_cat=False)
+data_settings = generate_data_settings("M3", normalize = "none", use_age = True, use_dm = True, use_deltas = True, normalize_cat=True)
 
 total_results = {}
 # full_table = pd.DataFrame( columns = all_considered_columns)
 
-for target_column in all_considered_columns:
+while len(all_considered_columns) > 0:
+    target_column = all_considered_columns[0]
     total_results[target_column] = {}
     data_settings[TARGET] = target_column
-    all_considered_columns.delete(target_column)
+    all_considered_columns.remove(target_column)
+    # print(all_considered_columns)
     for other_column in all_considered_columns:
-        data_settings[MODEL_COLS] = [other_column]
+        print(target_column, other_column)
+        data_settings[MODEL_COLS] = [target_column, other_column] 
         hase_out = run_hase(v6_info, data_settings)
         total_results[target_column][other_column] = hase_out["global_betas"]
     

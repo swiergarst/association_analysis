@@ -25,7 +25,7 @@ client.authenticate("researcher", "password")
 client.setup_encryption(None)
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 # ids = [3]
-image_name = "sgarst/association-analysis:1.7.1"
+image_name = "sgarst/association-analysis:1.8"
 v6_info = generate_v6_info(client, image_name, ids, 1)
 
 ## data settings ##
@@ -34,8 +34,8 @@ normalize = "global" # options: global, local, none
 use_age = False # whether to use age as a covariate
 use_dm = True # whether to use dm as a covariate
 use_deltas = False # whether to look at delta metabo/brainage
-normalize_cat = False # whether to normalize categorical variables
-data_settings = generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normalize_cat, bin_width)
+normalize_cat = True # whether to normalize categorical variables
+data_settings = generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normalize_cat)
 
 # other settings
 
@@ -43,9 +43,10 @@ write_file = True
 
 def run_hase(v6_info, data_settings):
 
-
+    # print(f'data cols: {data_settings[DATA_COLS]}')
     task_kwargs = {"data_settings" : data_settings}
     avg_fed, std_fed = normalize_workflow(v6_info, copy.deepcopy(data_settings))
+    # print("normalizing complete")
     data_settings[GLOBAL_MEAN] = avg_fed
     data_settings[GLOBAL_STD] = std_fed
 
@@ -76,22 +77,24 @@ def run_hase(v6_info, data_settings):
 
     bot = full_C - full_B.T @ A_inv @ full_B
     df = global_size - full_B.shape[0]
+
+    # print(f'shapes: {A_inv.shape, As.shape, bot.shape}')
     se = 1/np.sqrt(df / (A_inv_diag * bot))
 
-    classif_settings = generate_classif_settings(0, 0, data_settings)
+    classif_settings = generate_classif_settings(0, 0, copy.deepcopy(data_settings))
     classif_settings[COEF] = np.copy(beta_hat)
     mae_kwargs = { 
         "data_settings" : data_settings,
         "classif_settings" : classif_settings}
     
-    mae_task = post_vantage_task(v6_info, "hase_mae", )
+    mae_task = post_vantage_task(v6_info, "hase_mae", mae_kwargs)
     mae_results = get_results(client, mae_task)
     mae = np.array([mae_result['mae'] for mae_result in mae_results])
 
     final_results = {
         "global_betas" : beta_hat.tolist(), # ideally this is a pd dataframe
-        "coef_names" : data_settings[MODEL_COLS].tolist(),
-        "mae" : mae.tolist(),
+        "coef_names" : data_settings[MODEL_COLS],
+        "mae" : mae,
         "standard_error" : se.tolist(),
         #"se_columns" : se.columns.tolist(),
         "sizes" : sizes.tolist()       
