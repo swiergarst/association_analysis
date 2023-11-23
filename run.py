@@ -25,7 +25,7 @@ client.authenticate("researcher", "password")
 client.setup_encryption(None)
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 # ids = [3]
-image_name = "sgarst/association-analysis:1.7.1"
+image_name = "sgarst/association-analysis:1.8"
 v6_info = generate_v6_info(client, image_name, ids, 1)
 
 v6_test_info = copy.deepcopy(v6_info)
@@ -46,7 +46,7 @@ data_settings = generate_data_settings(model, normalize, use_age, use_dm, use_de
 ## regression settings ##
 n_runs = 1
 n_rounds = 2
-lr = 0.005
+lr = 0.05
 seed_offset = 0
 
 # other settings
@@ -54,11 +54,12 @@ seed_offset = 0
 write_file = True
 
 
-local_train_maes = np.zeros((n_runs, n_rounds, len(v6_info[ORG_IDS])))
-local_test_maes = np.zeros_like(local_train_maes)
+
 
 def run(v6_info, data_settings, n_runs, n_rounds):
 
+    local_train_maes = np.zeros((n_runs, n_rounds, len(v6_info[ORG_IDS])))
+    local_test_maes = np.zeros_like(local_train_maes)
     for run in range(n_runs):
         seed = run + seed_offset
         classifier_settings = generate_classif_settings(lr, seed, copy.deepcopy(data_settings))

@@ -104,7 +104,7 @@ def complete_dataframe(data_settings):
         info("selecting lag time < 2 years")
         df = df.loc[abs(df[LAG_TIME]) <= 2].reset_index(drop=True)
 
-    info("bla")
+    # info("bla")
     info(f'df size: {df.shape}')
     info(f'df columns: {df.columns}')
     # data = data_df[cols].dropna()

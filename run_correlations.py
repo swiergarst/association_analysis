@@ -7,7 +7,8 @@ import json
 from v6_LinReg_py.constants import *
 from utils2 import generate_v6_info, generate_data_settings
 from run_hase import run_hase
-
+import copy
+from workflows import normalize_workflow
 ## vantage6 settings ##
 client = Client("http://localhost", 5000, "/api")
 client.authenticate("researcher", "password")
@@ -22,7 +23,12 @@ write_file = False
 
 
 # generate initial data settings (most of these will be overwritten/not used)
-data_settings = generate_data_settings("M3", normalize = "none", use_age = True, use_dm = True, use_deltas = True, normalize_cat=True)
+data_settings = generate_data_settings("M3", normalize = "global", use_age = True, use_dm = True, use_deltas = True, normalize_cat=True)
+avg_fed, std_fed = normalize_workflow(v6_info, copy.deepcopy(data_settings))
+data_settings[GLOBAL_MEAN] = avg_fed
+data_settings[GLOBAL_STD] = std_fed
+
+
 
 total_results = {}
 # full_table = pd.DataFrame( columns = all_considered_columns)

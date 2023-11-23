@@ -12,6 +12,8 @@ def mean_workflow(v6_info, data_settings):
     task = post_vantage_task(v6_info, "get_avg", {"data_settings": data_settings})
     results = get_results(v6_info[CLIENT], task, print_log=False)
 
+    for i, id in enumerate(v6_info[ORG_IDS]):
+        results[i]['averages']['ID'] = id
     # means = avg_results[0]['averages']
     # for i in range(1, len(avg_results)):
     #     means.append(avg_results[i]['averages'])
@@ -19,8 +21,8 @@ def mean_workflow(v6_info, data_settings):
     full_df = pd.concat([avg_result['averages'] for avg_result in results], ignore_index=True)
     sizes = np.array([avg_result['size'] for avg_result in results])
     
-    global_mean_arr = np.array([np.sum([(mean * size) for mean, size in zip(full_df.values, sizes)], axis = 0) / np.sum(sizes)])
-    global_df = pd.DataFrame(data=global_mean_arr, columns = full_df.columns)
+    global_mean_arr = np.array([np.sum([(mean * size) for mean, size in zip(full_df.drop(columns = 'ID').values, sizes)], axis = 0) / np.sum(sizes)])
+    global_df = pd.DataFrame(data=global_mean_arr, columns = full_df.drop(columns = "ID").columns)
 
     return(global_df, full_df)
 
