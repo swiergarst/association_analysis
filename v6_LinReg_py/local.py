@@ -74,14 +74,14 @@ def complete_dataframe(data_settings):
 
     info("merging based on id")
     # merge rows from same patients (but different visits)
-    data_df = data_df.groupby([id]).agg({col : 'first' for col in data_settings[ALL_COLS] if col != id}).reset_index()
+    data_df = base_df.groupby([id]).agg({col : 'first' for col in data_settings[ALL_COLS] if col != id}).reset_index()
 
     info("base dataframe built.")
     data_df = data_df.dropna()
 
 
-    df = base_df[data_settings[DATA_COLS]].copy()
-
+    df = data_df[data_settings[DATA_COLS]].copy()
+    # info(str(df[date_metabolomics].values))
 
     info("adding columns based on covariates")
     #cols_to_add = data_settings[SYNTH_COLS]

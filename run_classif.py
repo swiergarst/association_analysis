@@ -21,7 +21,7 @@ client.authenticate("researcher", "password")
 client.setup_encryption(None)
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 # ids = [3]
-image_name = "sgarst/association-analysis:1.8"
+image_name = "sgarst/association-analysis:1.9"
 v6_info = generate_v6_info(client, image_name, ids, 1)
 
 ## data settings ##

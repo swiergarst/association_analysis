@@ -23,8 +23,10 @@ def RPC_train_round(db_client, data_settings, classif_settings):
     data = normalise(data.astype(float), data_settings)
 
     if data_settings[STRATIFY] == True:
+        info(f'stratifying on {data_settings[STRATIFY_GROUPS]}')
         for strat_col, strat_val in zip(data_settings[STRATIFY_GROUPS], data_settings[STRATIFY_VALUES]):
-            data = data.loc(data[strat_col] == strat_val)
+            info(f'selecting {strat_val} from {strat_col}')
+            data = data.loc[data[strat_col] == strat_val]
 
     y_full = data[data_settings[TARGET]]
     X_full = data.drop(columns = data_settings[TARGET])
@@ -81,7 +83,6 @@ def RPC_train_round(db_client, data_settings, classif_settings):
     }
 
 
-## TODO: implement
 def RPC_predict_disease(db_client, data_settings, classif_settings):
     data = complete_dataframe(data_settings)
 
