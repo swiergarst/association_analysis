@@ -1,4 +1,4 @@
-from V6_implementation.v6_LinReg_py.constants import *
+from V6_implementation.v6_LinReg_py.local_constants import *
 import numpy as np
 import pandas as pd
 import sys

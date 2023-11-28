@@ -63,35 +63,6 @@ DEFAULT_FUNCTIONS = [
     MAX_FUNCTION, MIN_FUNCTION, AVG_FUNCTION, POOLED_STD_FUNCTION
 ]
 
-## data column values
-ID = "id"
-METABO_AGE = "metabo_age"
-METABO_HEALTH = "metabo_health"
-BRAIN_AGE = "brain_age"
-DATE_METABOLOMICS = "date_metabolomics"
-DATE_MRI = "date_mri"
-BIRTH_YEAR = "birth_year"
-SEX = "sex"
-DM = "dm"
-BMI = "bmi"
-EDUCATION_CATEGORY = "education_category_3"
-EC1 = "ec_1"
-EC2 = "ec_2"
-EC3 = "ec_3"
-SENSITIVITY_1 = "Sens_1"
-SENSITIVITY_2 = "Sens_2"
-LAG_TIME = "Lag_time"
-AGE = "Age"
-
-
-# data column defines
-ALL_EXISTING_COLS_VALUES = [ID, METABO_AGE, BRAIN_AGE, DATE_METABOLOMICS, DATE_MRI, BIRTH_YEAR, SEX, DM, BMI, EDUCATION_CATEGORY] # all columns in the postgres database
-CAT_COLS_VALUES = [EDUCATION_CATEGORY, SEX, DM, EC1, EC2, EC3] # categorical columns
-EXTRA_COLS_VALUES = [EDUCATION_CATEGORY, SENSITIVITY_1, SENSITIVITY_2, LAG_TIME, AGE] # columns we might want, but need to be synthesized
-OPTION_COLS_VALUES = [EDUCATION_CATEGORY, SENSITIVITY_1, SENSITIVITY_2] # these will never be used 'as is'
-
-
-
 ## data settings key values
 NORMALIZE = "normalize"
 USE_AGE = "use_age"
@@ -109,6 +80,23 @@ GLOBAL_MEAN = "global_mean"
 GLOBAL_STD = "global_std"
 MODEL_COLS = "model_cols"
 SENS = "sensitivity" # whether to run sensitivity analysis on lag time
+STRATIFY = "stratify"
+OPTION_COLS = "option_cols"
+CAT_COLS = "cat_cols"
+DEFINES = "defines"
+LAG_TIME_COL = "lag_time_col"
+AGE_COL = "age_col"
+DATE_METABOLOMICS_COL = "date_metabolomics_col"
+DATE_MRI_COL = "date_mri_col"
+BIRTH_YEAR_COL = "birth_year_col"
+METABO_AGE_COL = "metabo_age_col"
+BRAIN_AGE_COL = "brain_age_col"
+EDUCATION_CATEGORY_COL = "education_category_col"
+EDUCATION_CATEGORIES_LIST = "education_category_list"
+ID_COL = "id_col"
+BP_1 = "bp_1"
+STRATIFY_GROUPS = "stratify_groups"
+STRATIFY_VALUES = "stratify_values"
 
 ## v6_info ##
 CLIENT = "client"

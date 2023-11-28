@@ -17,7 +17,7 @@ from vantage6.tools.data_format import DataFormat
 from vantage6.tools.exceptions import DeserializationException
 from typing import BinaryIO
 
-from v6_LinReg_py.constants import ERROR
+from NCDC.V6_implementation.v6_LinReg_py.local_constants import ERROR
 
 # from sshtunnel import SSHTunnelForwarder
 

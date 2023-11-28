@@ -17,7 +17,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../V6_implementation'))
 from V6_implementation.utils2 import generate_v6_info, generate_data_settings, generate_classif_settings, post_vantage_task, average, get_results
 from V6_implementation.workflows import normalize_workflow, se_workflow
 
-from V6_implementation.v6_LinReg_py.constants import *
+from NCDC.V6_implementation.v6_LinReg_py.local_constants import *
 
 ## vantage6 settings ##
 client = Client("http://localhost", 5000, "/api")
@@ -42,6 +42,8 @@ data_settings = generate_data_settings(model, normalize, use_age, use_dm, use_de
 write_file = True
 
 def run_hase(v6_info, data_settings):
+
+    print(f'hase normalization: {data_settings[NORMALIZE]}')
 
     # print(f'data cols: {data_settings[DATA_COLS]}')
     task_kwargs = {"data_settings" : data_settings}

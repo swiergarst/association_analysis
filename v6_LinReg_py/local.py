@@ -12,12 +12,12 @@ import os
 import matplotlib.pyplot as plt
 sys.path.insert(1, os.path.join(sys.path[0], '../v6_LinReg_py'))
 
-from .constants import *
+from .local_constants import *
 def build_dataframe(cols, PG_URI = None):
 
     info(f'building dataframe with columns: {cols}')
     data_df = pd.DataFrame()
-
+    
     if PG_URI == None:
             PG_URI = 'postgresql://{}:{}@{}:{}'.format(
                 os.getenv("PGUSER"),
@@ -49,60 +49,80 @@ def build_dataframe(cols, PG_URI = None):
         info(f"psycopg2 error: {e}")
         return e
     
-    info("merging based on id")
-    # merge rows from same patients (but different visits)
-    data_df = data_df.groupby([ID]).agg({col : 'first' for col in cols if col != ID}).reset_index()
 
-    info("base dataframe built.")
-    data_df = data_df.dropna()
     return data_df
 
 
 def complete_dataframe(data_settings):
-    base_df = build_dataframe(data_settings[ALL_COLS])
-
-    df = base_df[data_settings[DATA_COLS]].copy()
-    info("adding columns based on covariates")
-    #cols_to_add = data_settings[SYNTH_COLS]
+    
+    # pull the defines out of data_settings
     model_cols = data_settings[MODEL_COLS]
     use_deltas = data_settings[USE_DELTAS]
-    if (LAG_TIME in model_cols) or (AGE in model_cols) or (use_deltas == True):
+    lag_time = data_settings[DEFINES][LAG_TIME_COL]
+    age = data_settings[DEFINES][AGE_COL]
+    date_metabolomics = data_settings[DEFINES][DATE_METABOLOMICS_COL]
+    date_mri = data_settings[DEFINES][DATE_MRI_COL]
+    birth_year = data_settings[DEFINES][BIRTH_YEAR_COL]
+    metabo_age = data_settings[DEFINES][METABO_AGE_COL]
+    brain_age = data_settings[DEFINES][BRAIN_AGE_COL]
+    education_category = data_settings[DEFINES][EDUCATION_CATEGORY_COL]
+    ec_list = data_settings[DEFINES][EDUCATION_CATEGORIES_LIST]
+    id = data_settings[DEFINES][ID_COL]
+    
+    
+    base_df = build_dataframe(data_settings[ALL_COLS])
+
+    info("merging based on id")
+    # merge rows from same patients (but different visits)
+    data_df = data_df.groupby([id]).agg({col : 'first' for col in data_settings[ALL_COLS] if col != id}).reset_index()
+
+    info("base dataframe built.")
+    data_df = data_df.dropna()
+
+
+    df = base_df[data_settings[DATA_COLS]].copy()
+
+
+    info("adding columns based on covariates")
+    #cols_to_add = data_settings[SYNTH_COLS]
+
+    if (lag_time in model_cols) or (age in model_cols) or (use_deltas == True):
         #calculate age at blood draw and mri scan
         #cols_for_tmp_df = [DATE_METABOLOMICS, DATE_MRI, BIRTH_YEAR]
         #tmp_df = build_dataframe(cols_for_tmp_df)
-        blood_dates = np.array([date.strftime("%Y") for date in df[DATE_METABOLOMICS].values]).astype(int)
-        mri_dates = np.array([date.strftime("%Y") for date in df[DATE_MRI].values]).astype(int)
+        blood_dates = np.array([date.strftime("%Y") for date in df[date_metabolomics].values]).astype(int)
+        mri_dates = np.array([date.strftime("%Y") for date in df[date_mri].values]).astype(int)
 
-        Age_met = blood_dates - df[BIRTH_YEAR].values
-        Age_brain = mri_dates- df[BIRTH_YEAR].values
-        if LAG_TIME in model_cols:
+        Age_met = blood_dates - df[birth_year].values
+        Age_brain = mri_dates- df[birth_year].values
+        if lag_time in model_cols:
             info("adding lag time")
-            df[LAG_TIME] = Age_met - Age_brain
-        if (AGE in model_cols):
+            df[lag_time] = Age_met - Age_brain
+        if (age in model_cols):
             info("adding age")
-            df[AGE] = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
+            df[age] = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
         if (use_deltas == True):
             info("calculating deltas")
             age = np.mean(np.vstack((Age_met, Age_brain)), axis = 0)
-            df[METABO_AGE] = df[METABO_AGE].values.astype(float) - age
-            df[BRAIN_AGE] = df[BRAIN_AGE].values.astype(float) - age
+            df[metabo_age] = df[metabo_age].values.astype(float) - age
+            df[brain_age] = df[brain_age].values.astype(float) - age
 
-    if EC1 in model_cols:
+    if ec_list[0] in model_cols:
         info("adding education category")
         # tmp_df = build_dataframe([EDUCATION_CATEGORY])
         enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
-        mapped_names = [EC1, EC2, EC3]
-        mapped_arr = enc.fit_transform(df[EDUCATION_CATEGORY].values.reshape(-1, 1))
+        mapped_names = ec_list
+        mapped_arr = enc.fit_transform(df[education_category].values.reshape(-1, 1))
         mapped_df = pd.DataFrame(data = mapped_arr, columns = mapped_names)
 
         df = pd.concat([df.reset_index(drop=True), mapped_df.reset_index(drop=True)], axis = 1, ignore_index=False)
         # data_settings[DATA_COLS].extend(mapped_names)
     if data_settings[SENS] == 1:
         info("selecting lag time < 1 year")
-        df = df.loc[abs(df[LAG_TIME]) <= 1].reset_index(drop=True)
+        df = df.loc[abs(df[lag_time]) <= 1].reset_index(drop=True)
     elif data_settings[SENS] == 2:
         info("selecting lag time < 2 years")
-        df = df.loc[abs(df[LAG_TIME]) <= 2].reset_index(drop=True)
+        df = df.loc[abs(df[lag_time]) <= 2].reset_index(drop=True)
 
     # info("bla")
     info(f'df size: {df.shape}')
@@ -111,7 +131,6 @@ def complete_dataframe(data_settings):
     data_df = df[data_settings[MODEL_COLS]]
     info("dataframe finished")
     return data_df
-
 
 
 def create_test_train_split(X, y, seed):
@@ -182,12 +201,12 @@ def det_norm_cols(data_settings):
     model_cols = data_settings[MODEL_COLS]
 
     if norm_cat == False:
-        norm_cols = [col for col in model_cols if col not in CAT_COLS_VALUES]
+        norm_cols = [col for col in model_cols if col not in data_settings[CAT_COLS]]
     else:
         norm_cols = model_cols
 
     # bit of a hack, but w/e
-    for col in OPTION_COLS_VALUES:
+    for col in data_settings[OPTION_COLS]:
         if col in norm_cols:
             norm_cols.remove(col)
 

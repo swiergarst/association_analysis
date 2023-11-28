@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import datetime
 import json
-from v6_LinReg_py.constants import *
+from NCDC.V6_implementation.v6_LinReg_py.local_constants import *
 from utils2 import generate_v6_info, generate_data_settings
 from run_hase import run_hase
 import copy

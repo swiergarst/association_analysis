@@ -1,9 +1,10 @@
 import sys
 import os
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
+sys.path.insert(1, os.path.join(sys.path[0], '../V6_implementation'))
 
-from V6_implementation.v6_LinReg_py.constants import *
-
+from V6_implementation.v6_LinReg_py.local_constants import *
+from V6_implementation.run_constants import *
 import time
 import pickle
 from io import BytesIO
@@ -44,7 +45,27 @@ def generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normal
     data_settings[NORM_CAT] = normalize_cat
     data_settings[BIN_WIDTH_BOXPLOT] = bin_width
     data_settings[SENS] = 0
+    data_settings[STRATIFY] = False
+    data_settings[DEFINES] = { # this way we can define the column names locally
+        ALL_COLS: ALL_EXISTING_COLS_VALUES,
+        OPTION_COLS: OPTION_COLS_VALUES,
+        CAT_COLS: CAT_COLS_VALUES,
+        LAG_TIME_COL: LAG_TIME,
+        AGE_COL : AGE,
+        DATE_METABOLOMICS_COL: DATE_METABOLOMICS,
+        DATE_MRI_COL : DATE_MRI,
+        BIRTH_YEAR_COL : BIRTH_YEAR,
+        METABO_AGE_COL : METABO_AGE,
+        BRAIN_AGE_COL : BRAIN_AGE,
+        EDUCATION_CATEGORY_COL : EDUCATION_CATEGORY,
+        EDUCATION_CATEGORIES_LIST : [EC1, EC2, EC3],
+        ID_COL : ID
+    }
+    # data_settings[STRATIFY_GROUPS] = STRATIFY_GROUPS_VALUES
     data_settings[ALL_COLS] = ALL_EXISTING_COLS_VALUES
+    data_settings[OPTION_COLS] = OPTION_COLS_VALUES
+    data_settings[CAT_COLS] = CAT_COLS_VALUES
+    data_settings[BP_1] = BRAIN_AGE
 
     if (model == "M6") or  (model == "M7"):
         data_settings[TARGET] = METABO_HEALTH

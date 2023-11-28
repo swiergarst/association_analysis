@@ -5,13 +5,14 @@ import os
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.linear_model import SGDRegressor
+from sklearn.linear_model import SGDRegressor, LinearRegression
 import sys
 import os
 sys.path.insert(1, os.path.join(sys.path[0], '../v6_LinReg_py'))
 import math
-from .constants import *
+from .local_constants import *
 from .local import build_dataframe, complete_dataframe, create_test_train_split, make_boxplot, normalise
+
 
 
 def RPC_train_round(db_client, data_settings, classif_settings):
@@ -21,13 +22,18 @@ def RPC_train_round(db_client, data_settings, classif_settings):
     # info(str(data.columns))
     data = normalise(data.astype(float), data_settings)
 
+    if data_settings[STRATIFY] == True:
+        for strat_col, strat_val in zip(data_settings[STRATIFY_GROUPS], data_settings[STRATIFY_VALUES]):
+            data = data.loc(data[strat_col] == strat_val)
+
     y_full = data[data_settings[TARGET]]
     X_full = data.drop(columns = data_settings[TARGET])
 
     info("creating test/train split")
-    X_train, X_test, y_train, y_test = create_test_train_split(X_full, y_full, classif_settings[SEED])
+    # X_train, X_test, y_train, y_test = create_test_train_split(X_full, y_full, classif_settings[SEED])
 
-    model = SGDRegressor(loss="squared_error", penalty=None, max_iter = 1, eta0=classif_settings[LR], fit_intercept=False)
+    model = SGDRegressor(loss="squared_error", penalty=None, max_iter = 1, eta0=classif_settings[LR], fit_intercept=True)
+    # model = LinearRegression(fit_intercept= False, warm_start = True)
     model.coef_ = classif_settings[COEF].values[0,:]
     model.feature_names_in_ = classif_settings[COEF].columns
     model.intercept_ = [0]
@@ -36,31 +42,36 @@ def RPC_train_round(db_client, data_settings, classif_settings):
     # info(str(X_train.columns))
 
     info("calculating global predictions/errors")
-    test_pred = model.predict(X_test)
-    train_pred = model.predict(X_train)
+    # test_pred = model.predict(X_test)
+    # train_pred = model.predict(X_train)
     full_pred = model.predict(X_full)
 
 
-    train_mae = np.mean(abs(train_pred - y_train))
-    test_mae = np.mean(abs(test_pred - y_test))
-    test_loss = np.mean((model.predict(X_test) - y_test) **2)
+    # train_mae = np.mean(abs(train_pred - y_train))
+    # test_mae = np.mean(abs(test_pred - y_test))
+    full_mae = np.mean(abs(full_pred - y_full))
+
+    # test_loss = np.mean((model.predict(X_test) - y_test) **2)
 
     info("fitting model")
-    info(str(X_train))
-    info(str(y_train))
-    model.partial_fit(X_train, y_train.values)
+    # info(str(X_train))
+    # info(str(y_train))
+    model.partial_fit(X_full, y_full.values)
+    # model.fit(X_full, y_full.values)
+
     info("model fitted")
     return_params = pd.DataFrame(data = [model.coef_], columns = model.feature_names_in_)
 
     info("creating boxplots")
     residual = full_pred - y_full.values
-    fig, ax, bp, bin_start = make_boxplot(X_full[BRAIN_AGE], residual, data_settings[BIN_WIDTH_BOXPLOT])
+    fig, ax, bp, bin_start = make_boxplot(X_full[data_settings[BP_1]], residual, data_settings[BIN_WIDTH_BOXPLOT])
     return {
         LOCAL_COEF: return_params,
-        TRAIN_MAE : train_mae,
-        TEST_MAE : test_mae,
-        TEST_LOSS : test_loss,
-        LOCAL_TRAIN_SIZE : y_train.shape[0],
+        "full_mae" : full_mae,
+        # TRAIN_MAE : train_mae,
+        # TEST_MAE : test_mae,
+        # TEST_LOSS : test_loss,
+        LOCAL_TRAIN_SIZE : y_full.shape[0],
         BP: {
             "fig" : fig,
             "ax" : ax,
@@ -68,6 +79,13 @@ def RPC_train_round(db_client, data_settings, classif_settings):
             "bin_start" : bin_start
         }
     }
+
+
+## TODO: implement
+# note: could make this non-iterative; Rotterdam is the only center for which it'd be run anyway (probably not a good idea)
+def RPC_predict_disease(db_client, data_settings):
+    pass
+
 
 
 def RPC_get_avg(db_client, data_settings):

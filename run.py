@@ -17,7 +17,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../V6_implementation'))
 from V6_implementation.utils2 import generate_v6_info, generate_data_settings, generate_classif_settings, post_vantage_task, average, get_results
 from V6_implementation.workflows import normalize_workflow, se_workflow
 
-from V6_implementation.v6_LinReg_py.constants import *
+from NCDC.V6_implementation.v6_LinReg_py.local_constants import *
 
 ## vantage6 settings ##
 client = Client("http://localhost", 5000, "/api")
@@ -46,7 +46,7 @@ data_settings = generate_data_settings(model, normalize, use_age, use_dm, use_de
 ## regression settings ##
 n_runs = 1
 n_rounds = 2
-lr = 0.05
+lr = 0.005
 seed_offset = 0
 
 # other settings
@@ -58,6 +58,7 @@ write_file = True
 
 def run(v6_info, data_settings, n_runs, n_rounds):
 
+    print(f'pht normalization: {data_settings[NORMALIZE]}')
     local_train_maes = np.zeros((n_runs, n_rounds, len(v6_info[ORG_IDS])))
     local_test_maes = np.zeros_like(local_train_maes)
     for run in range(n_runs):
@@ -80,8 +81,9 @@ def run(v6_info, data_settings, n_runs, n_rounds):
 
             global_coefs = average(local_coefs, sizes)
             classifier_settings[COEF] = global_coefs
-            local_test_maes[run, round, :]  = [result[TEST_MAE] for result in results]
-            local_train_maes[run, round, :] = [result[TRAIN_MAE] for result in results]
+            # local_test_maes[run, round, :]  = [result[TEST_MAE] for result in results]
+            local_test_maes[run, round, :]  = [result["full_mae"] for result in results]
+            # local_train_maes[run, round, :] = [result[TRAIN_MAE] for result in results]
 
         se = se_workflow(v6_info, copy.deepcopy(data_settings), copy.deepcopy(classifier_settings))
 
@@ -97,7 +99,7 @@ def run(v6_info, data_settings, n_runs, n_rounds):
         "coef_names" : global_coefs.columns.tolist(),
         "local_betas" : local_coefs.values.tolist(),
         "test_mae" : local_test_maes.tolist(),
-        "train_mae" : local_train_maes.tolist(),
+        # "train_mae" : local_train_maes.tolist(),
         "bin_ranges" : branges,
         "standard_error" : se.tolist(),
         #"se_columns" : se.columns.tolist(),
