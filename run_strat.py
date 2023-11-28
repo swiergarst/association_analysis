@@ -41,8 +41,9 @@ data_settings = generate_data_settings(model, normalize, use_age, use_dm, use_de
 def run_strat(v6_info, data_settings, stratify_settings, model):
     # there should be a way to non-hardcode this, but for now not necessary
     data_settings[STRATIFY] = True
-    for dm_val in stratify_settings["dm"]:
-        for ad_val in stratify_settings["dem"]:
+    data_settings[MODEL_COLS].append(DEMENTIA)
+    for dm_val in stratify_settings[DM]:
+        for ad_val in stratify_settings[DEMENTIA]:
             data_settings[STRATIFY_GROUPS] = [DM, DEMENTIA]
             data_settings[STRATIFY_VALUES] = [dm_val, ad_val]
 
