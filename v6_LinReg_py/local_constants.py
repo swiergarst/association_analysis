@@ -97,6 +97,7 @@ ID_COL = "id_col"
 BP_1 = "bp_1"
 STRATIFY_GROUPS = "stratify_groups"
 STRATIFY_VALUES = "stratify_values"
+CLASSIF_TARGETS = "classif_targets"
 
 ## v6_info ##
 CLIENT = "client"

@@ -5,7 +5,7 @@ import os
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.linear_model import SGDRegressor, LinearRegression
+from sklearn.linear_model import SGDClassifier, SGDRegressor, LinearRegression
 import sys
 import os
 sys.path.insert(1, os.path.join(sys.path[0], '../v6_LinReg_py'))
@@ -30,7 +30,7 @@ def RPC_train_round(db_client, data_settings, classif_settings):
     X_full = data.drop(columns = data_settings[TARGET])
 
     info("creating test/train split")
-    # X_train, X_test, y_train, y_test = create_test_train_split(X_full, y_full, classif_settings[SEED])
+    X_train, X_test, y_train, y_test = create_test_train_split(X_full, y_full, classif_settings[SEED])
 
     model = SGDRegressor(loss="squared_error", penalty=None, max_iter = 1, eta0=classif_settings[LR], fit_intercept=True)
     # model = LinearRegression(fit_intercept= False, warm_start = True)
@@ -82,9 +82,52 @@ def RPC_train_round(db_client, data_settings, classif_settings):
 
 
 ## TODO: implement
-# note: could make this non-iterative; Rotterdam is the only center for which it'd be run anyway (probably not a good idea)
-def RPC_predict_disease(db_client, data_settings):
-    pass
+def RPC_predict_disease(db_client, data_settings, classif_settings):
+    data = complete_dataframe(data_settings)
+
+    # info(str(data.columns))
+    data = normalise(data.astype(float), data_settings)
+
+    # shouldn't ever do this for classification I think, but just in case    
+    if data_settings[STRATIFY] == True:
+        for strat_col, strat_val in zip(data_settings[STRATIFY_GROUPS], data_settings[STRATIFY_VALUES]):
+            data = data.loc(data[strat_col] == strat_val)
+
+
+    label_columns = data[data_settings[CLASSIF_TARGETS]].values
+    y_full = np.array([label_column * 2**i  for i, label_column in enumerate(label_columns)]) # this way we can combine multiple columns. only works for binary outcomes
+    X_full = data.drop(columns = data_settings[CLASSIF_TARGETS])
+    info("creating test/train split")
+    X_train, X_test, y_train, y_test = create_test_train_split(X_full, y_full, classif_settings[SEED])
+
+    model = SGDClassifier(loss="log_loss", penalty=None, learning_rate="constant", max_iter = 1, eta0=classif_settings[LR], fit_intercept=True, warm_start=True)
+    model.coef_ = classif_settings[COEF].values[0,:]
+    model.feature_names_in_ = classif_settings[COEF].columns
+    model.intercept_ = [0]
+    info("calculating global predictions/errors")
+    test_acc = model.score(X_test, y_test)
+    train_acc = model.score(X_train, y_train)
+    full_acc = model.score(X_full, y_full)
+    # test_loss = np.mean((model.predict(X_test) - y_test) **2)
+
+    info("fitting model")
+    # info(str(X_train))
+    # info(str(y_train))
+    model.partial_fit(X_full, y_full.values)
+    # model.fit(X_full, y_full.values)
+
+    info("model fitted")
+    return_params = pd.DataFrame(data = [model.coef_], columns = model.feature_names_in_)
+
+
+    return {
+        LOCAL_COEF: return_params,
+        "full_acc" : full_acc,
+        "train_acc" : train_acc,
+        "test_acc" : test_acc,
+        # TEST_LOSS : test_loss,
+        LOCAL_TRAIN_SIZE : y_full.shape[0],
+    }
 
 
 
