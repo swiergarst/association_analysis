@@ -22,7 +22,12 @@ def generate_v6_info(client, image_name, ids, collab_id):
 
 def generate_classif_settings(lr: float, seed: int, data_settings: dict):
     coef_names = data_settings[MODEL_COLS]
-    coef_names.remove(data_settings[TARGET])
+    if data_settings[CLASSIF_TARGETS] == None:
+        coef_names.remove(data_settings[TARGET])
+    else:
+        # print(f'classif targets: {data_settings[CLASSIF_TARGETS]}, coef names: {coef_names}')
+        for col in data_settings[CLASSIF_TARGETS]:
+            coef_names.remove(col)
     classif_settings = {}
     classif_settings[LR] = lr
     classif_settings[SEED] = seed
@@ -36,11 +41,9 @@ def generate_classif_settings(lr: float, seed: int, data_settings: dict):
     classif_settings[COEF] = coefs_df
     return classif_settings
 
-def generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normalize_cat, bin_width = 0.2):
+def generate_data_settings(model, normalize, use_deltas, normalize_cat, bin_width = 0.2):
     data_settings = {}
     data_settings[NORMALIZE] = normalize
-    data_settings[USE_AGE] = use_age
-    data_settings[USE_DM] = use_dm
     data_settings[USE_DELTAS] = use_deltas
     data_settings[NORM_CAT] = normalize_cat
     data_settings[BIN_WIDTH_BOXPLOT] = bin_width
@@ -66,6 +69,7 @@ def generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normal
     data_settings[OPTION_COLS] = OPTION_COLS_VALUES
     data_settings[CAT_COLS] = CAT_COLS_VALUES
     data_settings[BP_1] = BRAIN_AGE
+    data_settings[CLASSIF_TARGETS] = None
 
     if (model == "M6") or  (model == "M7"):
         data_settings[TARGET] = METABO_HEALTH
@@ -73,40 +77,45 @@ def generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normal
         data_settings[TARGET] = METABO_AGE
 
     if model == "M1":
-        # data_settings[DATA_COLS] = [BRAIN_AGE, METABO_AGE]
         data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE]
+    elif model == "M1.5":
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, AGE]
     elif model == "M2":
-        # data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, METABO_AGE]
-        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, SEX, DM]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, AGE, LAG_TIME, SEX, DM]
+    elif model == "M2.5":
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, LAG_TIME, SEX, DM]
     elif model == "M3":
-        # data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, METABO_AGE]
         data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE ,SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
+    elif model == "M3.5":
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
     elif model == "M4":
-        # data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, SENSITIVITY_1, METABO_AGE]
         data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
         data_settings[SENS] = 1
     elif model == "M5":
-        # data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, METABO_AGE]
         data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
         data_settings[SENS] = 2
     elif model == "M6":
-        # data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, METABO_HEALTH]
         data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_HEALTH, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
     elif model == "M7":
-        # data_settings[DATA_COLS] = [BRAIN_AGE, SEX, DM, BMI, EDUCATION_CATEGORY, LAG_TIME, METABO_HEALTH]
         data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_HEALTH, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
 
-    # this shouldn't be necessary once we change the system to be more grid-search-friendly
-    if use_age == False:
-        if AGE in data_settings[MODEL_COLS]:
-            data_settings[MODEL_COLS].remove(AGE)
-    if use_dm == False:
-        if DM in data_settings[MODEL_COLS]:
-            data_settings[MODEL_COLS].remove(DM)
+    # # this shouldn't be necessary once we change the system to be more grid-search-friendly
+    # if use_age == False:
+    #     if AGE in data_settings[MODEL_COLS]:
+    #         data_settings[MODEL_COLS].remove(AGE)
+    # if use_dm == False:
+    #     if DM in data_settings[MODEL_COLS]:
+    #         data_settings[MODEL_COLS].remove(DM)
 
 
 
     data_settings[DATA_COLS] = infer_data_cols(data_settings)
+    return data_settings
+
+def append_data_settings(data_settings, label_cols):
+    if DEMENTIA in label_cols:
+        data_settings[MODEL_COLS].append(DEMENTIA)
+        data_settings[DATA_COLS] = infer_data_cols(data_settings)
     return data_settings
 
 # see which data columns we need to get based on which model columns we have

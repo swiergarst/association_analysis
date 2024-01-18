@@ -9,7 +9,7 @@ import copy
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 sys.path.insert(1, os.path.join(sys.path[0], '../V6_implementation'))
 
-from V6_implementation.utils2 import generate_v6_info, generate_data_settings, generate_classif_settings, post_vantage_task, average, get_results
+from V6_implementation.utils2 import generate_v6_info, generate_data_settings, generate_classif_settings, post_vantage_task, average, get_results, append_data_settings
 from V6_implementation.run_constants import *
 from V6_implementation.v6_LinReg_py.local_constants import *
 from V6_implementation.run import run
@@ -32,7 +32,7 @@ use_dm = True # whether to use dm as a covariate
 use_deltas = False # whether to look at delta metabo/brainage
 normalize_cat = False # whether to normalize categorical variables
 bin_width = 0.2
-data_settings = generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normalize_cat, bin_width)
+data_settings = generate_data_settings(model, normalize, use_deltas, normalize_cat, bin_width)
 
 
 
@@ -45,8 +45,10 @@ seed_offset = 0
 label_cols = [DM, DEMENTIA]
 data_settings[CLASSIF_TARGETS] = label_cols 
 
-def run_classif(v6_info, data_settings, n_runs, n_rounds):
+def run_classif(v6_info, data_settings, n_runs, n_rounds, classif_targets):
     local_test_accuracies = np.zeros((n_runs, n_rounds, len(v6_info[ORG_IDS])))
+    data_settings[CLASSIF_TARGETS] = classif_targets
+    data_settings = append_data_settings(data_settings, classif_targets)
     for run in range(n_runs):
         seed = run + seed_offset
         classifier_settings = generate_classif_settings(lr, seed, copy.deepcopy(data_settings))

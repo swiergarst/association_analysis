@@ -7,7 +7,7 @@ import json
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 sys.path.insert(1, os.path.join(sys.path[0], '../V6_implementation'))
 
-from V6_implementation.utils2 import generate_v6_info, generate_data_settings, generate_classif_settings, post_vantage_task, average, get_results
+from V6_implementation.utils2 import generate_v6_info, generate_data_settings, append_data_settings
 from V6_implementation.run_constants import *
 from V6_implementation.v6_LinReg_py.local_constants import *
 from V6_implementation.run import run
@@ -25,25 +25,28 @@ v6_info = generate_v6_info(client, image_name, ids, 1)
 ## data settings ##
 model = "M3" # options : M1, M2, M3, M4, M5, M6, M7
 normalize = "global" # options: global, local, none
-use_age = False # whether to use age as a covariate
-use_dm = True # whether to use dm as a covariate
+# use_age = False # whether to use age as a covariate
+# use_dm = True # whether to use dm as a covariate
 use_deltas = False # whether to look at delta metabo/brainage
 normalize_cat = True # whether to normalize categorical variables
 stratify_settings = {
-    "dm" : [0, 1],
-    "dem" : [0, 1]
+    DM : [0, 1],
+    DEMENTIA : [0, 1]
 }
 
 stratify_values = [[0, 1], [0, 1]]
-data_settings = generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normalize_cat)
+data_settings = generate_data_settings(model, normalize, use_deltas, normalize_cat)
 # data_settings[STRATIFY_GROUPS] = stratify_categories
 
 def run_strat(v6_info, data_settings, stratify_settings, model):
     # there should be a way to non-hardcode this, but for now not necessary
     data_settings[STRATIFY] = True
-    data_settings[MODEL_COLS].append(DEMENTIA)
+    data_settings = append_data_settings(data_settings, stratify_settings.keys())
+
+
     for dm_val in stratify_settings[DM]:
         for ad_val in stratify_settings[DEMENTIA]:
+            data_settings[STRATIFY] = True
             data_settings[STRATIFY_GROUPS] = [DM, DEMENTIA]
             data_settings[STRATIFY_VALUES] = [dm_val, ad_val]
 

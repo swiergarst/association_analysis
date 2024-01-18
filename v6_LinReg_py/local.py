@@ -110,7 +110,7 @@ def complete_dataframe(data_settings):
     if ec_list[0] in model_cols:
         info("adding education category")
         # tmp_df = build_dataframe([EDUCATION_CATEGORY])
-        enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False)
+        enc = OneHotEncoder(categories = [[0, 1, 2]], sparse=False, drop='first')
         mapped_names = ec_list
         mapped_arr = enc.fit_transform(df[education_category].values.reshape(-1, 1))
         mapped_df = pd.DataFrame(data = mapped_arr, columns = mapped_names)

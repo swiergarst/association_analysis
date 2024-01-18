@@ -22,11 +22,13 @@ def RPC_train_round(db_client, data_settings, classif_settings):
     # info(str(data.columns))
     data = normalise(data.astype(float), data_settings)
 
+    info(f'{data["dementia"].values}')
     if data_settings[STRATIFY] == True:
         info(f'stratifying on {data_settings[STRATIFY_GROUPS]}')
         for strat_col, strat_val in zip(data_settings[STRATIFY_GROUPS], data_settings[STRATIFY_VALUES]):
             info(f'selecting {strat_val} from {strat_col}')
             data = data.loc[data[strat_col] == strat_val]
+        
 
     y_full = data[data_settings[TARGET]]
     X_full = data.drop(columns = data_settings[TARGET])
@@ -92,30 +94,40 @@ def RPC_predict_disease(db_client, data_settings, classif_settings):
     # shouldn't ever do this for classification I think, but just in case    
     if data_settings[STRATIFY] == True:
         for strat_col, strat_val in zip(data_settings[STRATIFY_GROUPS], data_settings[STRATIFY_VALUES]):
-            data = data.loc(data[strat_col] == strat_val)
+            data = data.loc[data[strat_col] == strat_val]
 
 
     label_columns = data[data_settings[CLASSIF_TARGETS]].values
-    y_full = np.array([label_column * 2**i  for i, label_column in enumerate(label_columns)]) # this way we can combine multiple columns. only works for binary outcomes
+    # this way we can combine multiple columns. only works for binary outcomes
+    y_full = np.zeros(label_columns.shape[0])
+    for i in range(label_columns.shape[1]):
+        y_full +=  label_columns[:,i] * 2**i
+
     X_full = data.drop(columns = data_settings[CLASSIF_TARGETS])
     info("creating test/train split")
     X_train, X_test, y_train, y_test = create_test_train_split(X_full, y_full, classif_settings[SEED])
 
-    model = SGDClassifier(loss="log_loss", penalty=None, learning_rate="constant", max_iter = 1, eta0=classif_settings[LR], fit_intercept=True, warm_start=True)
-    model.coef_ = classif_settings[COEF].values[0,:]
+    model = SGDClassifier(loss="log", penalty=None, learning_rate="constant", max_iter = 1, eta0=classif_settings[LR], fit_intercept=True, warm_start=True)
+    # model.coef_ = classif_settings[COEF].values[0,:]
     model.feature_names_in_ = classif_settings[COEF].columns
     model.intercept_ = [0]
+    class_labels = np.arange(0, label_columns.shape[1]**2, 1)
+    model.classes_ = class_labels
     info("calculating global predictions/errors")
-    test_acc = model.score(X_test, y_test)
-    train_acc = model.score(X_train, y_train)
-    full_acc = model.score(X_full, y_full)
+    info(f'X sizes: {X_full.shape}, {X_test.shape}, {X_train.shape}')
+    info(f'Y sizes: {y_full.shape}, {y_test.shape}, {y_train.shape}')
+    info(f'coef values: {classif_settings[COEF].values.shape}')
+    # test_acc = model.score(X_test, y_test)
+    # train_acc = model.score(X_train, y_train)
+    # full_acc = model.score(X_full, y_full)
     # test_loss = np.mean((model.predict(X_test) - y_test) **2)
 
     info("fitting model")
     # info(str(X_train))
     # info(str(y_train))
-    model.partial_fit(X_full, y_full.values)
-    # model.fit(X_full, y_full.values)
+    # model.partial_fit(X_full, y_full)
+    # model.partial_fit(X_train, y_train, classes=class_labels)
+    model.fit(X_train, y_train, coef_init= classif_settings[COEF].values)
 
     info("model fitted")
     return_params = pd.DataFrame(data = [model.coef_], columns = model.feature_names_in_)

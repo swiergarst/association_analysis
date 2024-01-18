@@ -35,7 +35,7 @@ use_age = False # whether to use age as a covariate
 use_dm = True # whether to use dm as a covariate
 use_deltas = False # whether to look at delta metabo/brainage
 normalize_cat = True # whether to normalize categorical variables
-data_settings = generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normalize_cat)
+data_settings = generate_data_settings(model, normalize, use_deltas, normalize_cat)
 
 # other settings
 

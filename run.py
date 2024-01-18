@@ -40,7 +40,7 @@ use_dm = True # whether to use dm as a covariate
 use_deltas = False # whether to look at delta metabo/brainage
 normalize_cat = False # whether to normalize categorical variables
 bin_width = 0.2
-data_settings = generate_data_settings(model, normalize, use_age, use_dm, use_deltas, normalize_cat, bin_width)
+data_settings = generate_data_settings(model, normalize, use_deltas, normalize_cat, bin_width)
 
 
 ## regression settings ##
