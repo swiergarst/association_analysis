@@ -61,7 +61,7 @@ def generate_data_settings(model, normalize, use_deltas, normalize_cat, bin_widt
         METABO_AGE_COL : METABO_AGE,
         BRAIN_AGE_COL : BRAIN_AGE,
         EDUCATION_CATEGORY_COL : EDUCATION_CATEGORY,
-        EDUCATION_CATEGORIES_LIST : [EC1, EC2, EC3],
+        EDUCATION_CATEGORIES_LIST : [EC1, EC3],
         ID_COL : ID
     }
     # data_settings[STRATIFY_GROUPS] = STRATIFY_GROUPS_VALUES
@@ -85,19 +85,19 @@ def generate_data_settings(model, normalize, use_deltas, normalize_cat, bin_widt
     elif model == "M2.5":
         data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, LAG_TIME, SEX, DM]
     elif model == "M3":
-        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE ,SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE ,SEX, DM, BMI, LAG_TIME, AGE, EC1, EC3]
     elif model == "M3.5":
-        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, DM, BMI, LAG_TIME, AGE, EC1, EC3]
     elif model == "M4":
-        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC3]
         data_settings[SENS] = 1
     elif model == "M5":
-        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC3]
         data_settings[SENS] = 2
     elif model == "M6":
-        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_HEALTH, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_HEALTH, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC3]
     elif model == "M7":
-        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_HEALTH, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC2, EC3]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_HEALTH, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC3]
 
     # # this shouldn't be necessary once we change the system to be more grid-search-friendly
     # if use_age == False:
@@ -134,7 +134,7 @@ def infer_data_cols(data_settings: dict):
     if EC1 in data_settings[MODEL_COLS]:
         data_cols.append(EDUCATION_CATEGORY)
         data_cols.remove(EC1)
-        data_cols.remove(EC2)
+        # data_cols.remove(EC2)
         data_cols.remove(EC3)
     return data_cols
 
