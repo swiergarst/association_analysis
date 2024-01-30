@@ -70,11 +70,7 @@ def generate_data_settings(model, normalize, use_deltas, normalize_cat, bin_widt
     data_settings[CAT_COLS] = CAT_COLS_VALUES
     data_settings[BP_1] = BRAIN_AGE
     data_settings[CLASSIF_TARGETS] = None
-
-    if (model == "M6") or  (model == "M7"):
-        data_settings[TARGET] = METABO_HEALTH
-    else:
-        data_settings[TARGET] = METABO_AGE
+    data_settings[TARGET] = METABO_AGE
 
     if model == "M1":
         data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE]
@@ -95,8 +91,10 @@ def generate_data_settings(model, normalize, use_deltas, normalize_cat, bin_widt
         data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC3]
         data_settings[SENS] = 2
     elif model == "M6":
+        data_settings[TARGET] = METABO_HEALTH
         data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_HEALTH, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC3]
     elif model == "M7":
+        data_settings[TARGET] = METABO_HEALTH
         data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_HEALTH, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC3]
 
     # # this shouldn't be necessary once we change the system to be more grid-search-friendly
