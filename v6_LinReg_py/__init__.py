@@ -36,7 +36,7 @@ def RPC_train_round(db_client, data_settings, classif_settings):
     info("creating test/train split")
     X_train, X_test, y_train, y_test = create_test_train_split(X_full, y_full, classif_settings[SEED])
 
-    model = SGDRegressor(loss="squared_error", penalty=None, max_iter = 1, eta0=classif_settings[LR], fit_intercept=True)
+    model = SGDRegressor(loss="squared_error", penalty=None, max_iter = 1, eta0=classif_settings[LR], fit_intercept=False, random_state = classif_settings[SEED])
     # model = LinearRegression(fit_intercept= False, warm_start = True)
     model.coef_ = classif_settings[COEF].values[0,:]
     model.feature_names_in_ = classif_settings[COEF].columns
@@ -64,6 +64,7 @@ def RPC_train_round(db_client, data_settings, classif_settings):
     # model.fit(X_full, y_full.values)
 
     info("model fitted")
+    info(f"model intercept after fit: {model.intercept_}")
     return_params = pd.DataFrame(data = [model.coef_], columns = model.feature_names_in_)
 
     info("creating boxplots")

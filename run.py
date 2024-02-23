@@ -17,7 +17,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../V6_implementation'))
 from V6_implementation.utils2 import generate_v6_info, generate_data_settings, generate_classif_settings, post_vantage_task, average, get_results
 from V6_implementation.workflows import normalize_workflow, se_workflow
 
-from NCDC.V6_implementation.v6_LinReg_py.local_constants import *
+from V6_implementation.v6_LinReg_py.local_constants import *
 
 ## vantage6 settings ##
 client = Client("http://localhost", 5000, "/api")
@@ -25,7 +25,7 @@ client.authenticate("researcher", "password")
 client.setup_encryption(None)
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 # ids = [3]
-image_name = "sgarst/association-analysis:1.8"
+image_name = "sgarst/association-analysis:1.9"
 v6_info = generate_v6_info(client, image_name, ids, 1)
 
 v6_test_info = copy.deepcopy(v6_info)
@@ -45,8 +45,8 @@ data_settings = generate_data_settings(model, normalize, use_deltas, normalize_c
 
 ## regression settings ##
 n_runs = 1
-n_rounds = 2
-lr = 0.005
+n_rounds = 5
+lr = 0.05
 seed_offset = 0
 
 # other settings
@@ -67,6 +67,8 @@ def run(v6_info, data_settings, n_runs, n_rounds):
         task_kwargs = {
                 "data_settings" : data_settings,
                 "classif_settings" : classifier_settings}
+        
+        print(f'image name{v6_info[IMAGE_NAME]}')
         avg_fed, std_fed = normalize_workflow(v6_info, copy.deepcopy(data_settings))
         data_settings[GLOBAL_MEAN] = avg_fed
         data_settings[GLOBAL_STD] = std_fed
@@ -74,7 +76,7 @@ def run(v6_info, data_settings, n_runs, n_rounds):
         for round in range(n_rounds):
             # print(task_kwargs["classif_settings"][COEF])
             round_task = post_vantage_task(v6_info, "train_round", task_kwargs)
-            results = get_results(client, round_task)
+            results = get_results(client, round_task, print_log=False)
 
             local_coefs = pd.concat([result[LOCAL_COEF] for result in results])
             sizes = np.array([result[LOCAL_TRAIN_SIZE] for result in results])
