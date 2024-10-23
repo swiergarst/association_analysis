@@ -3,8 +3,8 @@ import os
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 sys.path.insert(1, os.path.join(sys.path[0], '../V6_implementation'))
 
-from V6_implementation.v6_LinReg_py.local_constants import *
-from V6_implementation.run_constants import *
+from association_analysis.v6_LinReg_py.local_constants import *
+from association_analysis.run_constants import *
 import time
 import pickle
 from io import BytesIO
@@ -83,7 +83,7 @@ def generate_data_settings(model, normalize, use_deltas, normalize_cat, bin_widt
     elif model == "M3":
         data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE ,SEX, DM, BMI, LAG_TIME, AGE, EC1, EC3]
     elif model == "M3.5":
-        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, DM, BMI, LAG_TIME, AGE, EC1, EC3]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, SEX, DM, BMI, LAG_TIME, EC1, EC3]
     elif model == "M4":
         data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_AGE, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC3]
         data_settings[SENS] = 1
@@ -92,10 +92,16 @@ def generate_data_settings(model, normalize, use_deltas, normalize_cat, bin_widt
         data_settings[SENS] = 2
     elif model == "M6":
         data_settings[TARGET] = METABO_HEALTH
-        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_HEALTH, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC3]
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_HEALTH, SEX, DM, LAG_TIME, AGE]
+    elif model == "M6.5":
+        data_settings[TARGET] = METABO_HEALTH
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_HEALTH, SEX, DM, LAG_TIME]
     elif model == "M7":
         data_settings[TARGET] = METABO_HEALTH
         data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_HEALTH, SEX, DM, BMI, LAG_TIME, AGE, EC1, EC3]
+    elif model == "M7.5":
+        data_settings[TARGET] = METABO_HEALTH
+        data_settings[MODEL_COLS] = [BRAIN_AGE, METABO_HEALTH, SEX, DM, BMI, LAG_TIME, EC1, EC3]
 
     # # this shouldn't be necessary once we change the system to be more grid-search-friendly
     # if use_age == False:
