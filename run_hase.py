@@ -17,7 +17,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '../V6_implementation'))
 from V6_implementation.utils2 import generate_v6_info, generate_data_settings, generate_classif_settings, post_vantage_task, average, get_results
 from V6_implementation.workflows import normalize_workflow, se_workflow
 
-from NCDC.V6_implementation.v6_LinReg_py.local_constants import *
+from V6_implementation.v6_LinReg_py.local_constants import *
 
 ## vantage6 settings ##
 client = Client("http://localhost", 5000, "/api")
