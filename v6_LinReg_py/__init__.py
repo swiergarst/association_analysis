@@ -1,15 +1,11 @@
 import psycopg2
 from vantage6.tools.util import info
-#from constants import *
-import os
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.linear_model import SGDClassifier, SGDRegressor, LinearRegression
+from sklearn.linear_model import SGDRegressor
 import sys
 import os
-sys.path.insert(1, os.path.join(sys.path[0], '../v6_LinReg_py'))
-import math
+# sys.path.insert(1, os.path.join(sys.path[0], '../v6_LinReg_py'))
 from .local_constants import *
 from .local import build_dataframe, complete_dataframe, create_test_train_split, make_boxplot, normalise
 

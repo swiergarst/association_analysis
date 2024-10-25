@@ -11,13 +11,13 @@ import pandas as pd
 import sys
 import os
 import copy
-sys.path.insert(1, os.path.join(sys.path[0], '..'))
-sys.path.insert(1, os.path.join(sys.path[0], '../V6_implementation'))
+# sys.path.insert(1, os.path.join(sys.path[0], '..'))
+# sys.path.insert(1, os.path.join(sys.path[0], '../V6_implementation'))
 
-from V6_implementation.utils2 import generate_v6_info, generate_data_settings, generate_classif_settings, post_vantage_task, average, get_results
-from V6_implementation.workflows import normalize_workflow, se_workflow
+from utils import generate_v6_info, generate_data_settings, generate_classif_settings, post_vantage_task, average, get_results
+from workflows import normalize_workflow, se_workflow
 
-from V6_implementation.v6_LinReg_py.local_constants import *
+from v6_LinReg_py.local_constants import *
 
 ## vantage6 settings ##
 client = Client("http://localhost", 5000, "/api")
@@ -25,7 +25,7 @@ client.authenticate("researcher", "password")
 client.setup_encryption(None)
 ids = [org['id'] for org in client.collaboration.get(1)['organizations']]
 # ids = [3]
-image_name = "sgarst/association-analysis:1.9"
+image_name = "sgarst/association-analysis:1.10"
 v6_info = generate_v6_info(client, image_name, ids, 1)
 
 v6_test_info = copy.deepcopy(v6_info)
@@ -68,7 +68,7 @@ def run(v6_info, data_settings, n_runs, n_rounds):
                 "data_settings" : data_settings,
                 "classif_settings" : classifier_settings}
         
-        print(f'image name{v6_info[IMAGE_NAME]}')
+        # print(f'image name{v6_info[IMAGE_NAME]}')
         avg_fed, std_fed = normalize_workflow(v6_info, copy.deepcopy(data_settings))
         data_settings[GLOBAL_MEAN] = avg_fed
         data_settings[GLOBAL_STD] = std_fed
@@ -113,6 +113,8 @@ def run(v6_info, data_settings, n_runs, n_rounds):
 if __name__ == "__main__":
 
     final_results, results = run(v6_info, copy.deepcopy(data_settings), n_runs, n_rounds)
+    print(f'coef names: {final_results["coef_names"]}')
+    print(f'maes: {final_results["test_mae"]}')
 
     if write_file:
         date = datetime.datetime.now()
