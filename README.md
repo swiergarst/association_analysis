@@ -10,10 +10,8 @@
 - [v6_LinReg_py](https://github.com/swiergarst/association_analysis/tree/master/v6_LinReg_py) holds the source code for the docker image used.
 - [run.py](https://github.com/swiergarst/association_analysis/blob/master/run.py)is the main file to run in order to run the association analysis. in order to do so, note that you should modify the lines describing the connection and authentication to the vantage6 server, i.e. modify line 23-24:
 ```
-{
 client = Client("http://localhost", 5000, "/api")
 client.authenticate("researcher", "password")`
-}
 ```
 to read the url of your server, as well as use the credentials given to you.
 For running different sets of covariates, modify the value for the `model` variable on line 36 to your liking. the outputs will be stored in a json file in the main folder. 
